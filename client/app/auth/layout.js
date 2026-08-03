@@ -5,7 +5,7 @@ export const metadata = {
 
 export default function AuthLayoutGroup({ children }) {
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen bg-warm-canvas text-carbon-black">
       {children}
     </div>
   );
