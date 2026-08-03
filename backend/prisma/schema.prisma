@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+
+enum DocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId   String   @unique
+
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces    Workspace[]
+  conversations Conversation[]
+  notes         Note[]
+}
+
+model Workspace {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  name        String
+  description String?
+
+  ownerId      String   @db.ObjectId
+  owner        User     @relation(fields: [ownerId], references: [id])
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  documents    Document[]
+  conversations Conversation[]
+  notes        Note[]
+
+  @@index([ownerId])
+}
+
+model Document {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  workspaceId String   @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  title       String
+
+  fileName    String
+
+  storageKey  String
+
+  mimeType    String
+
+  fileSize    Int
+
+  pageCount   Int?
+
+  status      DocumentStatus @default(PROCESSING)
+
+  vectorNamespace String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+ 
+model Conversation {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  title String?
+
+  workspaceId String @db.ObjectId
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  userId String @db.ObjectId
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model Message {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  conversationId String @db.ObjectId
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  role MessageRole
+
+  content String
+
+  citations Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+model Note {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  workspaceId String @db.ObjectId
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  userId String @db.ObjectId
+  user User @relation(fields: [userId], references: [id])
+
+  title String
+
+  content String
+
+  editorState Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([userId])
+}
