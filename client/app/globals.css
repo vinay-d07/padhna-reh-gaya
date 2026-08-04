@@ -92,3 +92,43 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+.note-prose h2 {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 500;
+  margin: 1em 0 0.4em;
+}
+
+.note-prose p {
+  margin: 0.6em 0;
+}
+
+.note-prose ul,
+.note-prose ol {
+  margin: 0.6em 0;
+  padding-left: 1.4em;
+}
+
+.note-prose ul {
+  list-style: disc;
+}
+
+.note-prose ol {
+  list-style: decimal;
+}
+
+.note-prose blockquote {
+  border-left: 3px solid var(--color-ash);
+  padding-left: 1em;
+  color: var(--color-slate);
+  margin: 0.8em 0;
+}
+
+.note-prose code {
+  background: var(--color-mist-gray);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
