@@ -1,0 +1,30 @@
+{
+  "name": "lanchain",
+  "version": "1.0.0",
+  "description": "RAG pipeline: PDF parsing (text-layer + OCR fallback) -> chunking -> HuggingFace embeddings -> Qdrant -> ChatGroq, with streaming chat over one or more ingested documents.",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "ingest": "node scripts/ingest.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@langchain/community": "^0.3.30",
+    "@langchain/core": "^0.3.40",
+    "@langchain/groq": "^0.2.0",
+    "@langchain/qdrant": "^0.1.1",
+    "@langchain/textsplitters": "^0.1.0",
+    "@napi-rs/canvas": "^0.1.65",
+    "@huggingface/transformers": "^3.4.0",
+    "@qdrant/js-client-rest": "^1.13.0",
+    "dotenv": "^16.4.5",
+    "pdfjs-dist": "^4.9.155",
+    "tesseract.js": "^5.1.1"
+  },
+  "allowScripts": {
+    "onnxruntime-node@1.21.0": true,
+    "protobufjs@7.6.5": true,
+    "sharp@0.34.5": true,
+    "tesseract.js@5.1.1": true
+  }
+}
