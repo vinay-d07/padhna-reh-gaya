@@ -149,7 +149,7 @@ export default function WorkspacePage({ workspaceId }) {
         </div>
 
         <div className="h-[70vh] min-w-0 lg:h-full lg:flex-1">
-          <ChatPanel workspaceName={workspaceName} />
+          <ChatPanel workspaceId={workspaceId} userId={userId} workspaceName={workspaceName} />
         </div>
 
         <div

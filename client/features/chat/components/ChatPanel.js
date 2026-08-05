@@ -2,11 +2,36 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send, Sparkles } from "lucide-react";
+import {
+  listConversations,
+  createConversation,
+  getMessages,
+  sendMessage,
+} from "@/features/chat/chat.services";
+import Markdown from "@/features/chat/components/Markdown";
 
 let idCounter = 0;
 const nextId = () => `msg-${Date.now()}-${idCounter++}`;
 
-export default function ChatPanel({ workspaceName }) {
+function formatSource(source) {
+  const label = source.documentTitle || source.title || "document";
+  const page = source.page != null ? ` (p.${source.page})` : "";
+  return `${label}${page}`;
+}
+
+function fromServerMessage(message) {
+  return {
+    id: message.id,
+    role: message.role === "ASSISTANT" ? "assistant" : "user",
+    content: message.content,
+    source: message.sources?.length
+      ? message.sources.map(formatSource).join(", ")
+      : undefined,
+  };
+}
+
+export default function ChatPanel({ workspaceId, userId, workspaceName }) {
+  const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -16,29 +41,106 @@ export default function ChatPanel({ workspaceName }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, isThinking]);
 
-  const handleSend = (e) => {
+  useEffect(() => {
+    if (!workspaceId) return;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const conversations = await listConversations(workspaceId);
+        if (cancelled || !conversations?.length) return;
+
+        const latest = conversations[0];
+        setConversationId(latest.id);
+
+        const history = await getMessages(latest.id);
+        if (cancelled) return;
+        setMessages(history.map(fromServerMessage));
+      } catch {
+        // No prior conversation yet — chat starts empty, one gets created on first send.
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  const handleSend = async (e) => {
     e.preventDefault();
     const question = input.trim();
-    if (!question) return;
+    if (!question || !userId || !workspaceId) return;
 
-    setMessages((prev) => [...prev, { id: nextId(), role: "user", content: question }]);
     setInput("");
+    setMessages((prev) => [...prev, { id: nextId(), role: "user", content: question }]);
     setIsThinking(true);
 
-    // Chat has no backend wired up yet — this simulates a RAG-style reply.
-    setTimeout(() => {
+    try {
+      let activeConversationId = conversationId;
+      if (!activeConversationId) {
+        const conversation = await createConversation(workspaceId, userId);
+        activeConversationId = conversation.id;
+        setConversationId(activeConversationId);
+      }
+
+      const assistantId = nextId();
+      let streamStarted = false;
+
+      await sendMessage(activeConversationId, userId, question, {
+        onToken: (token) => {
+          if (!streamStarted) {
+            streamStarted = true;
+            setIsThinking(false);
+            setMessages((prev) => [
+              ...prev,
+              { id: assistantId, role: "assistant", content: token },
+            ]);
+          } else {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, content: m.content + token } : m
+              )
+            );
+          }
+        },
+        onDone: (assistantMessage) => {
+          setIsThinking(false);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? fromServerMessage(assistantMessage) : m))
+          );
+        },
+        onError: (error) => {
+          setIsThinking(false);
+          setMessages((prev) =>
+            prev.some((m) => m.id === assistantId)
+              ? prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: error.message || "Something went wrong." }
+                    : m
+                )
+              : [
+                  ...prev,
+                  {
+                    id: assistantId,
+                    role: "assistant",
+                    content: error.message || "Something went wrong.",
+                  },
+                ]
+          );
+        },
+      });
+    } catch (error) {
+      setIsThinking(false);
       setMessages((prev) => [
         ...prev,
         {
           id: nextId(),
           role: "assistant",
-          content:
-            "Once documents are uploaded, I'll retrieve the relevant passages and answer this from your workspace instead of guessing.",
-          source: "workspace not wired to chat backend yet",
+          content: error.message || "Something went wrong.",
         },
       ]);
-      setIsThinking(false);
-    }, 700);
+    }
   };
 
   return (
@@ -100,7 +202,11 @@ function ChatBubble({ message }) {
           isUser ? "bg-carbon-black text-paper-white" : "bg-mist-gray text-carbon-black"
         }`}
       >
-        <p className="text-body-sm">{message.content}</p>
+        {isUser ? (
+          <p className="text-body-sm">{message.content}</p>
+        ) : (
+          <Markdown content={message.content} />
+        )}
         {message.source && (
           <p className="mt-2 font-mono text-caption uppercase text-smoke">
             {message.source}

@@ -24,8 +24,8 @@ export default function DashboardPage() {
     async function load() {
       const results = await Promise.allSettled([
         getWorkspaces(userId),
-        getStudyInsights(),
-        getActivity(),
+        getStudyInsights(userId),
+        getActivity(userId),
       ]);
 
       if (cancelled) return;
@@ -69,14 +69,17 @@ export default function DashboardPage() {
         </div>
 
         {!loading && (
-          <>
-            <StudyInsights insights={insights} />
-            <ActivityHeatmap data={activity} />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+            <section className="flex flex-col gap-4">
+              <StudyInsights insights={insights} />
+              <ActivityHeatmap data={activity} />
+            </section>
+
             <WorkspaceList
               workspaces={workspaces}
               onCreateClick={() => setCreateModalOpen(true)}
             />
-          </>
+          </div>
         )}
       </main>
 

@@ -20,20 +20,20 @@ export const createWorkspace = async ({ clerkId, name }) => {
   }
 };
 
-export const getStudyInsights = async () => {
+export const getStudyInsights = async (clerkId) => {
   try {
-    const response = await api.get('/dashboard/insights');
-    return response.data;
+    const response = await api.get('/dashboard/insights', { params: { clerkId } });
+    return response.data.data;
   } catch (error) {
     console.error('Error fetching study insights:', error);
     throw error;
   }
 };
 
-export const getActivity = async () => {
+export const getActivity = async (clerkId) => {
   try {
-    const response = await api.get('/dashboard/activity');
-    return response.data;
+    const response = await api.get('/dashboard/activity', { params: { clerkId } });
+    return response.data.data;
   } catch (error) {
     console.error('Error fetching activity:', error);
     throw error;
