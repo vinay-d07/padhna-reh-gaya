@@ -24,9 +24,17 @@ async function softDeleteDocument(id) {
   });
 }
 
+async function updateDocumentStatus(id, data) {
+  return await prisma.document.update({
+    where: { id },
+    data,
+  });
+}
+
 module.exports = {
   createDocument,
   findDocumentsByWorkspaceId,
   findDocumentById,
   softDeleteDocument,
+  updateDocumentStatus,
 };

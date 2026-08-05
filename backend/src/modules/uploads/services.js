@@ -1,8 +1,10 @@
 const { randomUUID } = require('crypto');
 const { supabase, DOCUMENTS_BUCKET, ensureBucket } = require('../../lib/supabase');
+const { loadRag } = require('../../lib/rag');
 const uploadsRepo = require('./repo');
 const workspaceRepo = require('../workspaces/repo');
 const userRepo = require('../users/repo');
+const dashboardService = require('../dashboard/services');
 
 const ALLOWED_MIME_TYPES = new Set(['application/pdf']);
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
@@ -53,8 +55,9 @@ async function uploadDocument({ workspaceId, clerkId, file, title }) {
     throw new Error(`Failed to upload file: ${uploadError.message}`);
   }
 
+  let document;
   try {
-    return await uploadsRepo.createDocument({
+    document = await uploadsRepo.createDocument({
       workspaceId,
       uploadedById: uploader.id,
       title: title?.trim() || file.originalname,
@@ -63,11 +66,53 @@ async function uploadDocument({ workspaceId, clerkId, file, title }) {
       mimeType: file.mimetype,
       fileSize: file.size,
       vectorNamespace: `doc_${randomUUID()}`,
-      status: 'READY',
+      status: 'PROCESSING',
     });
   } catch (dbError) {
     await supabase.storage.from(DOCUMENTS_BUCKET).remove([storageKey]);
     throw dbError;
+  }
+
+  // Ingestion (parsing, chunking, embedding, upserting into Qdrant) can take
+  // a while for large/scanned PDFs — don't make the caller wait for it. The
+  // document is returned with status PROCESSING and flips to READY/FAILED
+  // once ingestion settles.
+  ingestDocumentInBackground(document, file.buffer);
+
+  dashboardService
+    .recordActivity({
+      userId: uploader.id,
+      workspaceId,
+      type: 'DOCUMENT_UPLOADED',
+      metadata: { documentId: document.id },
+    })
+    .catch((error) => console.error(`Failed to record upload activity for ${uploader.id}:`, error));
+
+  return document;
+}
+
+async function ingestDocumentInBackground(document, buffer) {
+  try {
+    const { ingestDocument } = await loadRag();
+    const { pageCount } = await ingestDocument({
+      buffer,
+      collectionName: document.vectorNamespace,
+      metadata: {
+        documentId: document.id,
+        documentTitle: document.title,
+        source: document.fileName,
+      },
+    });
+    await uploadsRepo.updateDocumentStatus(document.id, {
+      status: 'READY',
+      pageCount,
+    });
+  } catch (error) {
+    console.error(`Ingestion failed for document ${document.id}:`, error);
+    await uploadsRepo.updateDocumentStatus(document.id, {
+      status: 'FAILED',
+      errorMessage: String(error.message || error).slice(0, 500),
+    });
   }
 }
 
@@ -95,6 +140,14 @@ async function deleteDocument(workspaceId, documentId) {
   }
 
   await supabase.storage.from(DOCUMENTS_BUCKET).remove([document.storageKey]);
+
+  try {
+    const { deleteDocumentVectors } = await loadRag();
+    await deleteDocumentVectors(document.vectorNamespace);
+  } catch (error) {
+    console.error(`Failed to delete vectors for document ${documentId}:`, error);
+  }
+
   return await uploadsRepo.softDeleteDocument(documentId);
 }
 
