@@ -6,7 +6,12 @@ const workspaceRepo = require('../workspaces/repo');
 const userRepo = require('../users/repo');
 const dashboardService = require('../dashboard/services');
 
-const ALLOWED_MIME_TYPES = new Set(['application/pdf']);
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  'text/plain',
+]);
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 function sanitizeFileName(name) {
@@ -24,7 +29,7 @@ async function uploadDocument({ workspaceId, clerkId, file, title }) {
     throw new Error('file is required');
   }
   if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
-    throw new Error('Only PDF files are supported');
+    throw new Error('Only PDF, DOCX, PPTX, and TXT files are supported');
   }
   if (file.size > MAX_FILE_SIZE) {
     throw new Error('File exceeds the 25MB size limit');
@@ -77,7 +82,7 @@ async function uploadDocument({ workspaceId, clerkId, file, title }) {
   // a while for large/scanned PDFs — don't make the caller wait for it. The
   // document is returned with status PROCESSING and flips to READY/FAILED
   // once ingestion settles.
-  ingestDocumentInBackground(document, file.buffer);
+  ingestDocumentInBackground(document, file.buffer, file.mimetype);
 
   dashboardService
     .recordActivity({
@@ -91,12 +96,13 @@ async function uploadDocument({ workspaceId, clerkId, file, title }) {
   return document;
 }
 
-async function ingestDocumentInBackground(document, buffer) {
+async function ingestDocumentInBackground(document, buffer, mimeType) {
   try {
     const { ingestDocument } = await loadRag();
     const { pageCount } = await ingestDocument({
       buffer,
       collectionName: document.vectorNamespace,
+      mimeType,
       metadata: {
         documentId: document.id,
         documentTitle: document.title,
@@ -151,8 +157,85 @@ async function deleteDocument(workspaceId, documentId) {
   return await uploadsRepo.softDeleteDocument(documentId);
 }
 
+async function assertDocumentReady(workspaceId, documentId) {
+  const document = await uploadsRepo.findDocumentById(documentId);
+  if (!document || document.workspaceId !== workspaceId) {
+    throw new Error('Document not found');
+  }
+  if (document.status !== 'READY') {
+    throw new Error('Document is still processing — try again once it finishes');
+  }
+  return document;
+}
+
+async function generateSummary({ workspaceId, documentId, userId }) {
+  const document = await assertDocumentReady(workspaceId, documentId);
+
+  const { generateSummary: generate } = await loadRag();
+  const content = await generate({
+    collectionName: document.vectorNamespace,
+    documentTitle: document.title,
+  });
+
+  const summary = await uploadsRepo.upsertSummary(documentId, { content });
+
+  dashboardService
+    .recordActivity({ userId, workspaceId, type: 'SUMMARY_GENERATED', metadata: { documentId } })
+    .catch((error) => console.error(`Failed to record summary activity for ${userId}:`, error));
+
+  return summary;
+}
+
+async function getSummary(workspaceId, documentId) {
+  const document = await uploadsRepo.findDocumentById(documentId);
+  if (!document || document.workspaceId !== workspaceId) {
+    throw new Error('Document not found');
+  }
+  const summary = await uploadsRepo.findSummaryByDocumentId(documentId);
+  if (!summary) {
+    throw new Error('Summary not found');
+  }
+  return summary;
+}
+
+async function generateFlashcards({ workspaceId, documentId, userId, count }) {
+  const document = await assertDocumentReady(workspaceId, documentId);
+
+  const { generateFlashcards: generate } = await loadRag();
+  const cards = await generate({
+    collectionName: document.vectorNamespace,
+    documentTitle: document.title,
+    count,
+  });
+
+  const flashcards = await uploadsRepo.replaceFlashcards(documentId, cards);
+
+  dashboardService
+    .recordActivity({
+      userId,
+      workspaceId,
+      type: 'FLASHCARDS_GENERATED',
+      metadata: { documentId, count: flashcards.length },
+    })
+    .catch((error) => console.error(`Failed to record flashcards activity for ${userId}:`, error));
+
+  return flashcards;
+}
+
+async function getFlashcards(workspaceId, documentId) {
+  const document = await uploadsRepo.findDocumentById(documentId);
+  if (!document || document.workspaceId !== workspaceId) {
+    throw new Error('Document not found');
+  }
+  return await uploadsRepo.findFlashcardsByDocumentId(documentId);
+}
+
 module.exports = {
   uploadDocument,
   listDocuments,
   deleteDocument,
+  generateSummary,
+  getSummary,
+  generateFlashcards,
+  getFlashcards,
 };

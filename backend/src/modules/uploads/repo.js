@@ -31,10 +31,45 @@ async function updateDocumentStatus(id, data) {
   });
 }
 
+async function findSummaryByDocumentId(documentId) {
+  return await prisma.summary.findUnique({ where: { documentId } });
+}
+
+async function upsertSummary(documentId, { content, model }) {
+  return await prisma.summary.upsert({
+    where: { documentId },
+    update: { content, model },
+    create: { documentId, content, model },
+  });
+}
+
+async function findFlashcardsByDocumentId(documentId) {
+  return await prisma.flashcard.findMany({
+    where: { documentId },
+    orderBy: { order: 'asc' },
+  });
+}
+
+// Regenerating flashcards replaces the previous set rather than appending —
+// Mongo has no cross-collection transaction here by default, but delete-then
+// -create is fine since flashcards are disposable/regeneratable.
+async function replaceFlashcards(documentId, cards) {
+  await prisma.flashcard.deleteMany({ where: { documentId } });
+  if (cards.length === 0) return [];
+  await prisma.flashcard.createMany({
+    data: cards.map((card, i) => ({ documentId, ...card, order: i })),
+  });
+  return await findFlashcardsByDocumentId(documentId);
+}
+
 module.exports = {
   createDocument,
   findDocumentsByWorkspaceId,
   findDocumentById,
   softDeleteDocument,
   updateDocumentStatus,
+  findSummaryByDocumentId,
+  upsertSummary,
+  findFlashcardsByDocumentId,
+  replaceFlashcards,
 };

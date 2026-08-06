@@ -2,9 +2,9 @@ const workspaceService = require('./services');
 
 async function create(req, res) {
   try {
-    const { clerkId, name, description, icon, color, coverImage } = req.body;
+    const { name, description, icon, color, coverImage } = req.body;
     const workspace = await workspaceService.createWorkspace({
-      clerkId,
+      clerkId: req.clerkId,
       name,
       description,
       icon,
@@ -27,8 +27,7 @@ async function create(req, res) {
 
 async function list(req, res) {
   try {
-    const { clerkId } = req.query;
-    const workspaces = await workspaceService.listWorkspaces(clerkId);
+    const workspaces = await workspaceService.listWorkspaces(req.clerkId);
     return res.status(200).json({
       success: true,
       data: workspaces,

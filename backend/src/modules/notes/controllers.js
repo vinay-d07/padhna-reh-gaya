@@ -3,8 +3,8 @@ const noteService = require('./services');
 async function create(req, res) {
   try {
     const { workspaceId } = req.params;
-    const { clerkId, title, content } = req.body;
-    const note = await noteService.createNote({ workspaceId, clerkId, title, content });
+    const { title, content } = req.body;
+    const note = await noteService.createNote({ workspaceId, clerkId: req.clerkId, title, content });
     return res.status(201).json({
       success: true,
       message: 'Note created successfully',

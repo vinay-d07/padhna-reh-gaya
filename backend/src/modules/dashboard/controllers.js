@@ -2,8 +2,7 @@ const dashboardService = require('./services');
 
 async function insights(req, res) {
   try {
-    const { clerkId } = req.query;
-    const data = await dashboardService.getStreakInsights({ clerkId });
+    const data = await dashboardService.getStreakInsights({ clerkId: req.clerkId });
     return res.status(200).json({
       success: true,
       data,
@@ -19,8 +18,7 @@ async function insights(req, res) {
 
 async function activity(req, res) {
   try {
-    const { clerkId } = req.query;
-    const data = await dashboardService.getHeatmap({ clerkId });
+    const data = await dashboardService.getHeatmap({ clerkId: req.clerkId });
     return res.status(200).json({
       success: true,
       data,

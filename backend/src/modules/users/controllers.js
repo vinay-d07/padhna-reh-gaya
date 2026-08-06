@@ -2,9 +2,9 @@ const userService = require('./services');
 
 async function signup(req, res) {
   try {
-    const { clerkId, email, name, imageUrl } = req.body;
+    const { email, name, imageUrl } = req.body;
     const user = await userService.signupOrSyncUser({
-      clerkId,
+      clerkId: req.clerkId,
       email,
       name,
       imageUrl,
@@ -25,6 +25,9 @@ async function signup(req, res) {
 async function getProfile(req, res) {
   try {
     const { clerkId } = req.params;
+    if (clerkId !== req.clerkId) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
     const user = await userService.getUserByClerkId(clerkId);
     return res.status(200).json({
       success: true,
@@ -42,6 +45,9 @@ async function getProfile(req, res) {
 async function deleteProfile(req, res) {
   try {
     const { clerkId } = req.params;
+    if (clerkId !== req.clerkId) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
     await userService.deleteUser(clerkId);
     return res.status(200).json({
       success: true,

@@ -20,8 +20,12 @@ async function listConversations(req, res) {
 async function createConversation(req, res) {
   try {
     const { workspaceId } = req.params;
-    const { clerkId, title } = req.body;
-    const conversation = await chatService.createConversation({ workspaceId, clerkId, title });
+    const { title } = req.body;
+    const conversation = await chatService.createConversation({
+      workspaceId,
+      clerkId: req.clerkId,
+      title,
+    });
     return res.status(201).json({
       success: true,
       message: 'Conversation created successfully',
@@ -60,7 +64,8 @@ async function listMessages(req, res) {
 //   event: error  data: { "message": "..." }
 async function sendMessage(req, res) {
   const { conversationId } = req.params;
-  const { clerkId, content } = req.body;
+  const { content } = req.body;
+  const clerkId = req.clerkId;
 
   try {
     await chatService.assertConversationAccessible(conversationId, clerkId);
