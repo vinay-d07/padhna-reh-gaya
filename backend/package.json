@@ -16,6 +16,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.51",
     "@prisma/client": "^6.3.0",
     "@supabase/supabase-js": "^2.112.0",
     "cors": "^2.8.6",

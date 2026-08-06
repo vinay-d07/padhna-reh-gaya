@@ -183,6 +183,10 @@ model Document {
 
   errorMessage String?
 
+  summary Summary?
+
+  flashcards Flashcard[]
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -192,6 +196,50 @@ model Document {
   @@index([workspaceId])
 
   @@index([workspaceId,status])
+}
+
+///////////////////////////////////////////////////////////
+// SUMMARY
+///////////////////////////////////////////////////////////
+
+model Summary {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  documentId String @unique @db.ObjectId
+
+  document Document @relation(fields: [documentId], references: [id])
+
+  content String
+
+  model String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+///////////////////////////////////////////////////////////
+// FLASHCARD
+///////////////////////////////////////////////////////////
+
+model Flashcard {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  documentId String @db.ObjectId
+
+  document Document @relation(fields: [documentId], references: [id])
+
+  question String
+
+  answer String
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
 }
 
 ///////////////////////////////////////////////////////////
