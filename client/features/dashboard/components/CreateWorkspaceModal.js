@@ -20,7 +20,7 @@ export default function CreateWorkspaceModal({ open, onClose }) {
     setSubmitting(true);
     setError(null);
     try {
-      const workspace = await createWorkspace({ clerkId: userId, name: name.trim() });
+      const workspace = await createWorkspace({ name: name.trim() });
       router.push(`/workspace/${workspace.id}`);
     } catch (err) {
       setError("Couldn't create the workspace. Try again.");

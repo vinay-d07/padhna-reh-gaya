@@ -12,12 +12,9 @@ export const listConversations = async (workspaceId) => {
   }
 };
 
-export const createConversation = async (workspaceId, clerkId, title) => {
+export const createConversation = async (workspaceId, title) => {
   try {
-    const response = await api.post(`/workspaces/${workspaceId}/conversations`, {
-      clerkId,
-      title,
-    });
+    const response = await api.post(`/workspaces/${workspaceId}/conversations`, { title });
     return response.data.data;
   } catch (error) {
     console.error('Error creating conversation:', error);
@@ -39,14 +36,17 @@ export const getMessages = async (conversationId) => {
 // (`event: ...\ndata: ...\n\n`) are parsed by hand off a fetch ReadableStream.
 export const sendMessage = async (
   conversationId,
-  clerkId,
   content,
   { onToken, onDone, onError } = {}
 ) => {
+  const token = await window.Clerk?.session?.getToken();
   const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clerkId, content }),
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ content }),
   });
 
   if (!response.ok || !response.body) {

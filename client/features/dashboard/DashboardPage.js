@@ -6,6 +6,7 @@ import ActivityHeatmap from "./components/ActivityHeatmap";
 import StudyInsights from "./components/StudyInsights";
 import WorkspaceList from "./components/WorkspaceList";
 import CreateWorkspaceModal from "./components/CreateWorkspaceModal";
+import Skeleton from "@/components/Skeleton";
 import { getWorkspaces, getStudyInsights, getActivity } from "./dash.services";
 
 export default function DashboardPage() {
@@ -23,9 +24,9 @@ export default function DashboardPage() {
 
     async function load() {
       const results = await Promise.allSettled([
-        getWorkspaces(userId),
-        getStudyInsights(userId),
-        getActivity(userId),
+        getWorkspaces(),
+        getStudyInsights(),
+        getActivity(),
       ]);
 
       if (cancelled) return;
@@ -68,10 +69,12 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {!loading && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        {loading ? (
+          <DashboardSkeleton />
+        ) : (
+          <div className="animate-fade-in grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
             <section className="flex flex-col gap-4">
-              <StudyInsights insights={insights} />
+              <StudyInsights insights={insights} workspaces={workspaces} />
               <ActivityHeatmap data={activity} />
             </section>
 
@@ -84,6 +87,30 @@ export default function DashboardPage() {
       </main>
 
       <CreateWorkspaceModal open={createModalOpen} onClose={() => setCreateModalOpen(false)} />
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <section className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-card" />
+          ))}
+        </div>
+        <Skeleton className="h-48 w-full rounded-card" />
+      </section>
+
+      <div className="rounded-card bg-paper-white p-6">
+        <Skeleton className="mb-4 h-6 w-1/2" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+        </div>
+      </div>
     </div>
   );
 }

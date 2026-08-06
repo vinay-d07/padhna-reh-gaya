@@ -12,12 +12,10 @@ export const getNotes = async (workspaceId) => {
 
 export const createNote = async (
   workspaceId,
-  clerkId,
   { title = 'Untitled note', content = '' } = {}
 ) => {
   try {
     const response = await api.post(`/workspaces/${workspaceId}/notes`, {
-      clerkId,
       title,
       content,
     });

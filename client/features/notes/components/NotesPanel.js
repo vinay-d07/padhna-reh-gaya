@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import NoteEditor from "./NoteEditor";
+import Skeleton from "@/components/Skeleton";
 import { getNotes, createNote, updateNote, deleteNote } from "../notes.services";
 
 export default function NotesPanel({ workspaceId, userId }) {
@@ -39,7 +40,7 @@ export default function NotesPanel({ workspaceId, userId }) {
     if (!userId) return;
 
     try {
-      const note = await createNote(workspaceId, userId);
+      const note = await createNote(workspaceId);
       setNotes((prev) => [note, ...prev]);
       setActiveNoteId(note.id);
     } catch {
@@ -116,6 +117,15 @@ export default function NotesPanel({ workspaceId, userId }) {
       )}
 
       <div className="flex-1 overflow-hidden px-5">
+        {loading && (
+          <div className="flex h-full flex-col gap-3 pt-4">
+            <Skeleton className="h-6 w-1/3" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        )}
+
         {!loading && !activeNote && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <p className="text-body-sm text-slate">No notes yet.</p>
@@ -128,7 +138,7 @@ export default function NotesPanel({ workspaceId, userId }) {
           </div>
         )}
 
-        {activeNote && (
+        {!loading && activeNote && (
           <div className="flex h-full flex-col">
             <input
               value={activeNote.title}

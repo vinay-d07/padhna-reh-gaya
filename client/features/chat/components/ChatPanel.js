@@ -2,13 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send, Sparkles } from "lucide-react";
-import {
-  listConversations,
-  createConversation,
-  getMessages,
-  sendMessage,
-} from "@/features/chat/chat.services";
+import { createConversation, getMessages, sendMessage } from "@/features/chat/chat.services";
 import Markdown from "@/features/chat/components/Markdown";
+import Skeleton from "@/components/Skeleton";
 
 let idCounter = 0;
 const nextId = () => `msg-${Date.now()}-${idCounter++}`;
@@ -30,42 +26,59 @@ function fromServerMessage(message) {
   };
 }
 
-export default function ChatPanel({ workspaceId, userId, workspaceName }) {
-  const [conversationId, setConversationId] = useState(null);
+// conversationId is controlled by the parent (sidebar picks/creates it) —
+// this panel just renders whatever conversation it's given, and starts empty
+// (id === null) rather than auto-loading the last-used conversation.
+export default function ChatPanel({
+  workspaceId,
+  userId,
+  workspaceName,
+  conversationId,
+  onConversationChange,
+  onMessageSent,
+}) {
   const [messages, setMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const scrollRef = useRef(null);
+  // Tracks which conversationId the current `messages` state belongs to, so
+  // that when handleSend creates a conversation locally and the id is handed
+  // back up to the parent, the prop round-tripping back down doesn't trigger
+  // a refetch that clobbers the just-streamed messages.
+  const loadedRef = useRef(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, isThinking]);
 
   useEffect(() => {
-    if (!workspaceId) return;
-    let cancelled = false;
+    if (conversationId === loadedRef.current) return;
+    loadedRef.current = conversationId;
 
-    async function load() {
-      try {
-        const conversations = await listConversations(workspaceId);
-        if (cancelled || !conversations?.length) return;
-
-        const latest = conversations[0];
-        setConversationId(latest.id);
-
-        const history = await getMessages(latest.id);
-        if (cancelled) return;
-        setMessages(history.map(fromServerMessage));
-      } catch {
-        // No prior conversation yet — chat starts empty, one gets created on first send.
-      }
+    if (!conversationId) {
+      setMessages([]);
+      return;
     }
 
-    load();
+    let cancelled = false;
+    setMessagesLoading(true);
+    getMessages(conversationId)
+      .then((history) => {
+        if (cancelled) return;
+        setMessages(history.map(fromServerMessage));
+      })
+      .catch(() => {
+        if (!cancelled) setMessages([]);
+      })
+      .finally(() => {
+        if (!cancelled) setMessagesLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [workspaceId]);
+  }, [conversationId]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -79,15 +92,16 @@ export default function ChatPanel({ workspaceId, userId, workspaceName }) {
     try {
       let activeConversationId = conversationId;
       if (!activeConversationId) {
-        const conversation = await createConversation(workspaceId, userId);
+        const conversation = await createConversation(workspaceId);
         activeConversationId = conversation.id;
-        setConversationId(activeConversationId);
+        loadedRef.current = activeConversationId;
+        onConversationChange?.(conversation);
       }
 
       const assistantId = nextId();
       let streamStarted = false;
 
-      await sendMessage(activeConversationId, userId, question, {
+      await sendMessage(activeConversationId, question, {
         onToken: (token) => {
           if (!streamStarted) {
             streamStarted = true;
@@ -109,6 +123,7 @@ export default function ChatPanel({ workspaceId, userId, workspaceName }) {
           setMessages((prev) =>
             prev.map((m) => (m.id === assistantId ? fromServerMessage(assistantMessage) : m))
           );
+          onMessageSent?.();
         },
         onError: (error) => {
           setIsThinking(false);
@@ -153,22 +168,31 @@ export default function ChatPanel({ workspaceId, userId, workspaceName }) {
       </div>
 
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-        {messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-body-sm text-slate">
-              Ask a question about the documents in this workspace.
-            </p>
+        {messagesLoading ? (
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-14 w-2/3 self-end" />
+            <Skeleton className="h-20 w-3/4" />
           </div>
-        )}
+        ) : (
+          <>
+            {messages.length === 0 && (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+                <p className="text-body-sm text-slate">
+                  Ask a question about the documents in this workspace.
+                </p>
+              </div>
+            )}
 
-        {messages.map((message) => (
-          <ChatBubble key={message.id} message={message} />
-        ))}
+            {messages.map((message) => (
+              <ChatBubble key={message.id} message={message} />
+            ))}
 
-        {isThinking && (
-          <div className="max-w-[80%] rounded-card-lg bg-mist-gray px-4 py-3">
-            <p className="font-mono text-caption uppercase text-smoke">thinking…</p>
-          </div>
+            {isThinking && (
+              <div className="max-w-[80%] rounded-card-lg bg-mist-gray px-4 py-3">
+                <p className="font-mono text-caption uppercase text-smoke">thinking…</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -196,7 +220,7 @@ function ChatBubble({ message }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`animate-fade-in flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[80%] rounded-card-lg px-4 py-3 ${
           isUser ? "bg-carbon-black text-paper-white" : "bg-mist-gray text-carbon-black"

@@ -18,12 +18,7 @@ export default function UserSync({ children }) {
           // Prevent multiple requests in the same browser session tab
           const syncFlag = sessionStorage.getItem(`synced_${user.id}`);
           if (!syncFlag) {
-            await syncUserWithBackend({
-              clerkId: user.id,
-              email,
-              name,
-              imageUrl,
-            });
+            await syncUserWithBackend({ email, name, imageUrl });
             sessionStorage.setItem(`synced_${user.id}`, 'true');
           }
         } catch (error) {

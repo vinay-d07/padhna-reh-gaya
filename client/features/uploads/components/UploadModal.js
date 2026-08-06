@@ -4,6 +4,13 @@ import { useRef, useState } from "react";
 import { UploadCloud, FileText, X } from "lucide-react";
 import Modal from "@/components/Modal";
 
+const ACCEPTED_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+]);
+
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -16,8 +23,8 @@ export default function UploadModal({ open, onClose, onUpload }) {
   const inputRef = useRef(null);
 
   const addFiles = (fileList) => {
-    const pdfFiles = Array.from(fileList).filter((f) => f.type === "application/pdf");
-    setFiles((prev) => [...prev, ...pdfFiles]);
+    const validFiles = Array.from(fileList).filter((f) => ACCEPTED_MIME_TYPES.has(f.type));
+    setFiles((prev) => [...prev, ...validFiles]);
   };
 
   const handleDrop = (e) => {
@@ -58,12 +65,12 @@ export default function UploadModal({ open, onClose, onUpload }) {
       >
         <UploadCloud size={28} className="text-carbon-black" />
         <p className="text-body-sm text-carbon-black">
-          Drop PDFs here, or click to browse
+          Drop PDF, DOCX, PPTX, or TXT files here, or click to browse
         </p>
         <input
           ref={inputRef}
           type="file"
-          accept="application/pdf"
+          accept=".pdf,.docx,.pptx,.txt"
           multiple
           onChange={(e) => addFiles(e.target.files)}
           className="hidden"

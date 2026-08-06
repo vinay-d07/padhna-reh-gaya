@@ -1,10 +1,9 @@
 import api from '@/lib/api';
 
-export const uploadDocument = async (workspaceId, file, clerkId) => {
+export const uploadDocument = async (workspaceId, file) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('clerkId', clerkId);
     formData.append('title', file.name);
 
     // Override the instance's default JSON header so axios leaves the

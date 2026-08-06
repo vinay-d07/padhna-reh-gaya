@@ -12,16 +12,32 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  MessageSquare,
 } from "lucide-react";
+import Skeleton from "@/components/Skeleton";
+
+const TABS = [
+  { id: "conversations", label: "Chats" },
+  { id: "documents", label: "Docs" },
+];
 
 export default function WorkspaceSidebar({
   workspaceName,
   documents = [],
+  conversations = [],
+  conversationsLoading = false,
+  activeConversationId,
+  selectedDocumentId,
+  sidebarTab = "documents",
+  onSidebarTabChange,
   collapsed = false,
   onToggleCollapse,
   onAddClick,
   onRename,
   onDelete,
+  onSelectDocument,
+  onSelectConversation,
+  onNewChat,
 }) {
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(workspaceName);
@@ -162,6 +178,45 @@ export default function WorkspaceSidebar({
         )}
       </div>
 
+      <div className="flex gap-1 px-3 pt-3">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onSidebarTabChange?.(t.id)}
+            className={`flex-1 rounded-lg px-3 py-2 text-body-sm font-medium transition-colors ${
+              sidebarTab === t.id
+                ? "bg-mist-gray text-carbon-black"
+                : "text-slate hover:bg-mist-gray/60 hover:text-carbon-black"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {sidebarTab === "documents" ? (
+        <DocumentsTab
+          documents={documents}
+          selectedDocumentId={selectedDocumentId}
+          onAddClick={onAddClick}
+          onSelectDocument={onSelectDocument}
+        />
+      ) : (
+        <ConversationsTab
+          conversations={conversations}
+          loading={conversationsLoading}
+          activeConversationId={activeConversationId}
+          onSelectConversation={onSelectConversation}
+          onNewChat={onNewChat}
+        />
+      )}
+    </aside>
+  );
+}
+
+function DocumentsTab({ documents, selectedDocumentId, onAddClick, onSelectDocument }) {
+  return (
+    <>
       <div className="flex items-center justify-between px-5 py-4">
         <h3 className="font-mono text-caption uppercase text-smoke">
           Documents · {documents.length}
@@ -182,7 +237,7 @@ export default function WorkspaceSidebar({
             className="mx-2 flex w-[calc(100%-1rem)] flex-col items-center gap-2 rounded-lg border-2 border-dashed border-ash p-6 text-center transition-colors hover:border-carbon-black"
           >
             <Plus size={18} className="text-carbon-black" />
-            <span className="text-body-sm text-slate">Add your first PDF</span>
+            <span className="text-body-sm text-slate">Add your first document</span>
           </button>
         ) : (
           <ul className="flex flex-col gap-1">
@@ -190,36 +245,105 @@ export default function WorkspaceSidebar({
               const label = doc.title || doc.fileName;
               const isUploading = doc.status === "UPLOADING";
               const isFailed = doc.status === "FAILED";
+              const isSelected = doc.id === selectedDocumentId;
               return (
-                <li
-                  key={doc.id}
-                  className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 transition-colors hover:bg-mist-gray"
-                >
-                  <FileText
-                    size={15}
-                    className={`shrink-0 ${isFailed ? "text-red-500" : "text-carbon-black"}`}
-                  />
-                  <span
-                    className={`truncate text-body-sm ${isFailed ? "text-red-500" : "text-carbon-black"}`}
+                <li key={doc.id}>
+                  <button
+                    onClick={() => onSelectDocument?.(doc)}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2.5 text-left transition-colors ${
+                      isSelected ? "bg-mist-gray" : "hover:bg-mist-gray"
+                    }`}
                   >
-                    {label}
-                  </span>
-                  {isUploading && (
-                    <span className="ml-auto shrink-0 font-mono text-caption text-smoke">
-                      Uploading…
+                    <FileText
+                      size={15}
+                      className={`shrink-0 ${isFailed ? "text-red-500" : "text-carbon-black"}`}
+                    />
+                    <span
+                      className={`truncate text-body-sm ${
+                        isFailed ? "text-red-500" : "text-carbon-black"
+                      } ${isSelected ? "font-medium" : ""}`}
+                    >
+                      {label}
                     </span>
-                  )}
-                  {isFailed && (
-                    <span className="ml-auto shrink-0 font-mono text-caption text-red-500">
-                      Failed
-                    </span>
-                  )}
+                    {isUploading && (
+                      <span className="ml-auto shrink-0 font-mono text-caption text-smoke">
+                        Uploading…
+                      </span>
+                    )}
+                    {isFailed && (
+                      <span className="ml-auto shrink-0 font-mono text-caption text-red-500">
+                        Failed
+                      </span>
+                    )}
+                  </button>
                 </li>
               );
             })}
           </ul>
         )}
       </div>
-    </aside>
+    </>
+  );
+}
+
+function ConversationsTab({ conversations, loading, activeConversationId, onSelectConversation, onNewChat }) {
+  return (
+    <>
+      <div className="px-3 pt-3">
+        <button
+          onClick={onNewChat}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-carbon-black px-4 py-2.5 text-body-sm font-medium text-paper-white transition-opacity hover:opacity-80"
+        >
+          <Plus size={14} />
+          New chat
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between px-5 py-4">
+        <h3 className="font-mono text-caption uppercase text-smoke">
+          Conversations · {conversations.length}
+        </h3>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 pb-4">
+        {loading ? (
+          <div className="flex flex-col gap-2 px-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className="mx-2 flex flex-col items-center gap-2 rounded-lg border-2 border-dashed border-ash p-6 text-center">
+            <MessageSquare size={18} className="text-carbon-black" />
+            <span className="text-body-sm text-slate">No conversations yet</span>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {conversations.map((conv) => {
+              const isActive = conv.id === activeConversationId;
+              return (
+                <li key={conv.id}>
+                  <button
+                    onClick={() => onSelectConversation?.(conv.id)}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2.5 text-left transition-colors ${
+                      isActive ? "bg-mist-gray" : "hover:bg-mist-gray"
+                    }`}
+                  >
+                    <MessageSquare size={15} className="shrink-0 text-carbon-black" />
+                    <span
+                      className={`truncate text-body-sm text-carbon-black ${
+                        isActive ? "font-medium" : ""
+                      }`}
+                    >
+                      {conv.title || "New conversation"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </>
   );
 }

@@ -1,14 +1,17 @@
-export default function StudyInsights({ insights }) {
+export default function StudyInsights({ insights, workspaces = [] }) {
   const currentStreak = insights?.currentStreak ?? 0;
   const longestStreak = insights?.longestStreak ?? 0;
+  const totalDocuments = workspaces.reduce((sum, w) => sum + (w._count?.documents ?? 0), 0);
 
   const tiles = [
     { label: "Current streak", value: `${currentStreak}`, unit: "days", tone: "dark" },
     { label: "Longest streak", value: `${longestStreak}`, unit: "days", tone: "light" },
+    { label: "Workspaces", value: `${workspaces.length}`, tone: "light" },
+    { label: "Documents", value: `${totalDocuments}`, tone: "light" },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       {tiles.map((tile) => (
         <div
           key={tile.label}

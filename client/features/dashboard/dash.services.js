@@ -1,8 +1,8 @@
 import api from '@/lib/api';
 
-export const getWorkspaces = async (clerkId) => {
+export const getWorkspaces = async () => {
   try {
-    const response = await api.get('/workspaces', { params: { clerkId } });
+    const response = await api.get('/workspaces');
     return response.data.data;
   } catch (error) {
     console.error('Error fetching workspaces:', error);
@@ -10,9 +10,9 @@ export const getWorkspaces = async (clerkId) => {
   }
 };
 
-export const createWorkspace = async ({ clerkId, name }) => {
+export const createWorkspace = async ({ name }) => {
   try {
-    const response = await api.post('/workspaces', { clerkId, name });
+    const response = await api.post('/workspaces', { name });
     return response.data.data;
   } catch (error) {
     console.error('Error creating workspace:', error);
@@ -20,9 +20,9 @@ export const createWorkspace = async ({ clerkId, name }) => {
   }
 };
 
-export const getStudyInsights = async (clerkId) => {
+export const getStudyInsights = async () => {
   try {
-    const response = await api.get('/dashboard/insights', { params: { clerkId } });
+    const response = await api.get('/dashboard/insights');
     return response.data.data;
   } catch (error) {
     console.error('Error fetching study insights:', error);
@@ -30,9 +30,9 @@ export const getStudyInsights = async (clerkId) => {
   }
 };
 
-export const getActivity = async (clerkId) => {
+export const getActivity = async () => {
   try {
-    const response = await api.get('/dashboard/activity', { params: { clerkId } });
+    const response = await api.get('/dashboard/activity');
     return response.data.data;
   } catch (error) {
     console.error('Error fetching activity:', error);
