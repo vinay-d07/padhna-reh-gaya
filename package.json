@@ -4,5 +4,13 @@
   "version": "1.0.0",
   "engines": {
     "node": ">=22"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "healthcheck": "node scripts/healthcheck.js",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
   }
 }

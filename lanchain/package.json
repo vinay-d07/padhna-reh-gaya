@@ -5,9 +5,13 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "ingest": "node scripts/ingest.js"
+    "ingest": "node scripts/ingest.js",
+    "test": "vitest run"
   },
   "license": "ISC",
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  },
   "dependencies": {
     "@huggingface/transformers": "^3.4.0",
     "@langchain/community": "^0.3.30",
