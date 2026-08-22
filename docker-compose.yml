@@ -1,0 +1,88 @@
+# One-command local dev environment. Supabase (file storage), Clerk (auth),
+# HuggingFace, and Groq are external cloud services either way — this only
+# containerizes the pieces that can run locally: the app's own data stores
+# and the two Node services.
+#
+# `api` bundles backend + lanchain in one image because backend/src/lib/rag.js
+# still dynamically imports lanchain by relative path (see docs/adr/001).
+#
+# Populate backend/.env, lanchain/.env, and client/.env from their
+# .env.example first — DATABASE_URL and QDRANT_URL below are overridden to
+# point at the containers in this file regardless of what's in backend/.env
+# / lanchain/.env, so those two lines don't need to be touched.
+#
+# Run with: docker compose --env-file client/.env up --build
+# (the --env-file is what lets the client build args below resolve real
+# Clerk keys from client/.env — see the `client.build.args` comment).
+
+services:
+  mongo:
+    image: mongo:7
+    # Prisma's MongoDB connector requires a replica set (even a single-node
+    # one) to support transactions — this command line + healthcheck bring
+    # one up on first start.
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: >
+        echo "try { rs.status() } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }" | mongosh --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - backend/.env
+      - lanchain/.env
+    environment:
+      DATABASE_URL: mongodb://mongo:27017/padhle?replicaSet=rs0
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ""
+    depends_on:
+      mongo:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    ports:
+      - "8080:8080"
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      # Next.js bakes NEXT_PUBLIC_* vars into the bundle at build time, so
+      # they have to come in as build args, not just container env — run
+      # this whole file with `docker compose --env-file client/.env up
+      # --build` so these substitutions actually resolve from client/.env.
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_CLERK_SIGN_IN_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_URL:-/auth/sign-in}
+        NEXT_PUBLIC_CLERK_SIGN_UP_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_URL:-/auth/sign-up}
+        NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: ${NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL:-/dashboard}
+        NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: ${NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL:-/dashboard}
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    env_file:
+      - client/.env
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo-data:
+  qdrant-data:

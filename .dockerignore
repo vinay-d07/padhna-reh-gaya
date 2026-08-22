@@ -1,0 +1,20 @@
+# Applies to backend/Dockerfile, which builds from the repo root (needed so
+# it can pull in both backend/ and lanchain/ — see backend/Dockerfile).
+# client/Dockerfile builds from client/ and uses client/.dockerignore instead.
+
+**/node_modules
+**/.next
+**/.env
+**/.env.*.local
+**/.env.local
+**/src/generated
+**/generated
+
+.git
+.github
+docs
+docker
+e2e
+test-results
+playwright-report
+*.md
