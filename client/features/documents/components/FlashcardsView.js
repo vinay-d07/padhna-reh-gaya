@@ -13,12 +13,10 @@ export default function FlashcardsView({ workspaceId, documentId }) {
   const [cardIndex, setCardIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
+  // The parent keys this component on documentId, so a document change
+  // remounts it with fresh state — no manual reset needed here.
   useEffect(() => {
     if (!workspaceId || !documentId) return;
-    setFlashcards(null);
-    setError(null);
-    setCardIndex(0);
-    setFlipped(false);
     getFlashcards(workspaceId, documentId)
       .then((data) => setFlashcards(data?.length ? data : undefined))
       .catch(() => setFlashcards(undefined));

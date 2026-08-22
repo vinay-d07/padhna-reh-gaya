@@ -12,10 +12,10 @@ export default function SummaryView({ workspaceId, documentId }) {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
 
+  // The parent keys this component on documentId, so a document change
+  // remounts it with fresh state — no manual reset needed here.
   useEffect(() => {
     if (!workspaceId || !documentId) return;
-    setSummary(null);
-    setError(null);
     getSummary(workspaceId, documentId)
       .then(setSummary)
       .catch(() => setSummary(undefined));
