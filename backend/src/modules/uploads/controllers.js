@@ -121,6 +121,47 @@ const getFlashcards = asyncHandler(async (req, res) => {
   });
 });
 
+const generateQuiz = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const count = req.body?.count ?? 5;
+  const quiz = await uploadService.generateQuiz({
+    workspaceId,
+    documentId,
+    userId: req.dbUser.id,
+    count,
+  });
+  return res.status(201).json({
+    success: true,
+    message: 'Quiz generated successfully',
+    data: quiz,
+  });
+});
+
+const getQuiz = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const quiz = await uploadService.getQuiz(workspaceId, documentId);
+  return res.status(200).json({
+    success: true,
+    data: quiz,
+  });
+});
+
+const submitQuizAttempt = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const { answers } = req.body;
+  const result = await uploadService.submitQuizAttempt({
+    workspaceId,
+    documentId,
+    userId: req.dbUser.id,
+    answers,
+  });
+  return res.status(201).json({
+    success: true,
+    message: 'Quiz submitted successfully',
+    data: result,
+  });
+});
+
 module.exports = {
   handleUpload,
   create,
@@ -131,4 +172,7 @@ module.exports = {
   getSummary,
   generateFlashcards,
   getFlashcards,
+  generateQuiz,
+  getQuiz,
+  submitQuizAttempt,
 };

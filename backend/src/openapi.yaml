@@ -17,6 +17,7 @@ tags:
   - name: Documents
   - name: Notes
   - name: Conversations
+  - name: Study
   - name: Dashboard
 
 components:
@@ -94,6 +95,32 @@ components:
         title: { type: string, nullable: true }
         lastMessageAt: { type: string, format: date-time, nullable: true }
 
+    QuizQuestion:
+      type: object
+      properties:
+        question: { type: string }
+        options: { type: array, items: { type: string }, minItems: 4, maxItems: 4 }
+        correctIndex: { type: integer, minimum: 0, maximum: 3 }
+        explanation: { type: string }
+
+    Quiz:
+      type: object
+      properties:
+        id: { type: string }
+        documentId: { type: string }
+        questions: { type: array, items: { $ref: '#/components/schemas/QuizQuestion' } }
+
+    ReviewCard:
+      type: object
+      properties:
+        id: { type: string }
+        documentId: { type: string }
+        documentTitle: { type: string, nullable: true }
+        question: { type: string }
+        answer: { type: string }
+        isNew: { type: boolean }
+        dueDate: { type: string, format: date-time, nullable: true }
+
   parameters:
     ClerkId:
       name: clerkId
@@ -122,6 +149,11 @@ components:
       schema: { type: string }
     ConversationId:
       name: conversationId
+      in: path
+      required: true
+      schema: { type: string }
+    FlashcardId:
+      name: flashcardId
       in: path
       required: true
       schema: { type: string }
@@ -346,6 +378,116 @@ paths:
                 count: { type: integer, minimum: 1, maximum: 30, default: 10 }
       responses:
         '201': { description: Generated }
+
+  /workspaces/{workspaceId}/documents/{documentId}/quiz:
+    get:
+      tags: [Documents]
+      summary: Get a document's quiz
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Quiz' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Documents]
+      summary: Generate (or regenerate) a multiple-choice quiz for a document
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count: { type: integer, minimum: 1, maximum: 20, default: 5 }
+      responses:
+        '201': { description: Generated }
+
+  /workspaces/{workspaceId}/documents/{documentId}/quiz/attempts:
+    post:
+      tags: [Documents]
+      summary: Submit answers for a document's quiz — graded server-side
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  items: { type: integer, minimum: 0, nullable: true }
+                  description: One selected option index per question, in order.
+      responses:
+        '201': { description: Graded }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /workspaces/{workspaceId}/review/queue:
+    get:
+      tags: [Study]
+      summary: Get the authenticated user's due (SM-2) + new flashcards across the workspace
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          cards: { type: array, items: { $ref: '#/components/schemas/ReviewCard' } }
+                          dueCount: { type: integer }
+                          newCount: { type: integer }
+
+  /workspaces/{workspaceId}/review/stats:
+    get:
+      tags: [Study]
+      summary: Get the authenticated user's due-flashcard count for the workspace
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: OK }
+
+  /workspaces/{workspaceId}/review/{flashcardId}:
+    post:
+      tags: [Study]
+      summary: Grade a flashcard review (Again/Hard/Good/Easy) and reschedule it via SM-2
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/FlashcardId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grade]
+              properties:
+                grade: { type: string, enum: [again, hard, good, easy] }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /workspaces/{workspaceId}/notes:
     get:

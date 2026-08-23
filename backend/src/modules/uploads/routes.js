@@ -3,7 +3,12 @@ const uploadsController = require('./controllers');
 const { requireAuth } = require('../../middleware/auth');
 const { requireWorkspaceRole } = require('../../middleware/access');
 const { validateBody } = require('../../middleware/validate');
-const { uploadDocumentSchema, generateFlashcardsSchema } = require('./validation');
+const {
+  uploadDocumentSchema,
+  generateFlashcardsSchema,
+  generateQuizSchema,
+  submitQuizAttemptSchema,
+} = require('./validation');
 
 router.get('/', requireAuth, requireWorkspaceRole('VIEWER'), uploadsController.list);
 router.post(
@@ -46,6 +51,27 @@ router.post(
   requireWorkspaceRole('EDITOR'),
   validateBody(generateFlashcardsSchema),
   uploadsController.generateFlashcards
+);
+
+router.get(
+  '/:documentId/quiz',
+  requireAuth,
+  requireWorkspaceRole('VIEWER'),
+  uploadsController.getQuiz
+);
+router.post(
+  '/:documentId/quiz',
+  requireAuth,
+  requireWorkspaceRole('EDITOR'),
+  validateBody(generateQuizSchema),
+  uploadsController.generateQuiz
+);
+router.post(
+  '/:documentId/quiz/attempts',
+  requireAuth,
+  requireWorkspaceRole('VIEWER'),
+  validateBody(submitQuizAttemptSchema),
+  uploadsController.submitQuizAttempt
 );
 
 module.exports = router;

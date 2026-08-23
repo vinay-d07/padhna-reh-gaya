@@ -40,6 +40,9 @@ enum ActivityType {
   NOTE_UPDATED
   SUMMARY_GENERATED
   FLASHCARDS_GENERATED
+  FLASHCARD_REVIEWED
+  QUIZ_GENERATED
+  QUIZ_COMPLETED
 }
 
 ///////////////////////////////////////////////////////////
@@ -77,6 +80,8 @@ model User {
   notes Note[]
 
   activities Activity[]
+
+  flashcardProgress FlashcardProgress[]
 }
 
 ///////////////////////////////////////////////////////////
@@ -192,6 +197,8 @@ model Document {
 
   flashcards Flashcard[]
 
+  quiz Quiz?
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -244,7 +251,61 @@ model Flashcard {
 
   createdAt DateTime @default(now())
 
+  progress FlashcardProgress[]
+
   @@index([documentId])
+}
+
+///////////////////////////////////////////////////////////
+// FLASHCARD PROGRESS (per-user SM-2 spaced-repetition state)
+///////////////////////////////////////////////////////////
+
+model FlashcardProgress {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  flashcardId String @db.ObjectId
+
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id])
+
+  userId String @db.ObjectId
+
+  user User @relation(fields: [userId], references: [id])
+
+  // SM-2 state — see backend/src/lib/spacedRepetition.js
+  easeFactor Float @default(2.5)
+
+  intervalDays Int @default(0)
+
+  repetitions Int @default(0)
+
+  dueDate DateTime @default(now())
+
+  lastReviewedAt DateTime?
+
+  @@unique([flashcardId,userId])
+
+  @@index([userId,dueDate])
+}
+
+///////////////////////////////////////////////////////////
+// QUIZ
+///////////////////////////////////////////////////////////
+
+model Quiz {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  documentId String @unique @db.ObjectId
+
+  document Document @relation(fields: [documentId], references: [id])
+
+  // [{ question, options: [4 strings], correctIndex, explanation }]
+  questions Json
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
 }
 
 ///////////////////////////////////////////////////////////

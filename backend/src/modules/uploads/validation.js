@@ -10,4 +10,17 @@ const generateFlashcardsSchema = z.object({
   count: z.coerce.number().int('count must be a whole number').min(1).max(30).optional(),
 });
 
-module.exports = { uploadDocumentSchema, generateFlashcardsSchema };
+const generateQuizSchema = z.object({
+  count: z.coerce.number().int('count must be a whole number').min(1).max(20).optional(),
+});
+
+const submitQuizAttemptSchema = z.object({
+  answers: z.array(z.number().int().min(0).nullable()).min(1),
+});
+
+module.exports = {
+  uploadDocumentSchema,
+  generateFlashcardsSchema,
+  generateQuizSchema,
+  submitQuizAttemptSchema,
+};

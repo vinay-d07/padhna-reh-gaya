@@ -1,6 +1,11 @@
 const prisma = require('../../lib/prisma');
 
-const STREAK_ACTIVITY_TYPES = ['DOCUMENT_UPLOADED', 'MESSAGE_SENT'];
+const STREAK_ACTIVITY_TYPES = [
+  'DOCUMENT_UPLOADED',
+  'MESSAGE_SENT',
+  'FLASHCARD_REVIEWED',
+  'QUIZ_COMPLETED',
+];
 
 async function recordActivity({ userId, workspaceId, type, metadata }) {
   return await prisma.activity.create({
@@ -22,7 +27,16 @@ async function findStreakActivitiesSince(userId, since) {
   });
 }
 
+// Progress rows are already scoped to the owning user, so this needs no
+// workspace join — it's every card due across every workspace they're in.
+async function countDueFlashcards(userId) {
+  return await prisma.flashcardProgress.count({
+    where: { userId, dueDate: { lte: new Date() } },
+  });
+}
+
 module.exports = {
   recordActivity,
   findStreakActivitiesSince,
+  countDueFlashcards,
 };

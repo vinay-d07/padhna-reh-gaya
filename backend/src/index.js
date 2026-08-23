@@ -17,6 +17,7 @@ const uploadsRoutes = require('./modules/uploads/routes');
 const notesRoutes = require('./modules/notes/routes');
 const chatRoutes = require('./modules/chat/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
+const reviewRoutes = require('./modules/review/routes');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -53,6 +54,7 @@ app.use('/workspaces/:workspaceId/notes', notesRoutes.workspaceScoped);
 app.use('/notes', notesRoutes.standalone);
 app.use('/workspaces/:workspaceId/conversations', chatRoutes.workspaceScoped);
 app.use('/conversations', chatRoutes.standalone);
+app.use('/workspaces/:workspaceId/review', reviewRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/workspaces', workspacesRoutes);
 

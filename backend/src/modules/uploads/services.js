@@ -245,6 +245,81 @@ async function getFlashcards(workspaceId, documentId) {
   return await uploadsRepo.findFlashcardsByDocumentId(documentId);
 }
 
+async function generateQuiz({ workspaceId, documentId, userId, count }) {
+  const document = await assertDocumentReady(workspaceId, documentId);
+
+  const { generateQuiz: generate } = await loadRag();
+  const questions = await generate({
+    collectionName: document.vectorNamespace,
+    documentTitle: document.title,
+    count,
+  });
+
+  const quiz = await uploadsRepo.upsertQuiz(documentId, questions);
+
+  dashboardService
+    .recordActivity({
+      userId,
+      workspaceId,
+      type: 'QUIZ_GENERATED',
+      metadata: { documentId, count: questions.length },
+    })
+    .catch((error) => console.error(`Failed to record quiz activity for ${userId}:`, error));
+
+  return quiz;
+}
+
+async function getQuiz(workspaceId, documentId) {
+  const document = await uploadsRepo.findDocumentById(documentId);
+  if (!document || document.workspaceId !== workspaceId) {
+    throw new Error('Document not found');
+  }
+  const quiz = await uploadsRepo.findQuizByDocumentId(documentId);
+  if (!quiz) {
+    throw new Error('Quiz not found');
+  }
+  return quiz;
+}
+
+// Grading happens server-side against the stored questions so a client can
+// never inflate its own score — the client only ever sees correctIndex
+// inside the returned per-question results, never before submitting.
+async function submitQuizAttempt({ workspaceId, documentId, userId, answers }) {
+  const document = await uploadsRepo.findDocumentById(documentId);
+  if (!document || document.workspaceId !== workspaceId) {
+    throw new AppError('Document not found', 404);
+  }
+  const quiz = await uploadsRepo.findQuizByDocumentId(documentId);
+  if (!quiz) {
+    throw new AppError('Quiz not found', 404);
+  }
+
+  const questions = quiz.questions;
+  const results = questions.map((q, i) => {
+    const selectedIndex = Number.isInteger(answers[i]) ? answers[i] : null;
+    return {
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      explanation: q.explanation,
+      selectedIndex,
+      correct: selectedIndex === q.correctIndex,
+    };
+  });
+  const score = results.filter((r) => r.correct).length;
+
+  dashboardService
+    .recordActivity({
+      userId,
+      workspaceId,
+      type: 'QUIZ_COMPLETED',
+      metadata: { documentId, quizId: quiz.id, score, total: questions.length },
+    })
+    .catch((error) => console.error(`Failed to record quiz completion for ${userId}:`, error));
+
+  return { score, total: questions.length, results };
+}
+
 module.exports = {
   uploadDocument,
   listDocuments,
@@ -254,4 +329,7 @@ module.exports = {
   getSummary,
   generateFlashcards,
   getFlashcards,
+  generateQuiz,
+  getQuiz,
+  submitQuizAttempt,
 };

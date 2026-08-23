@@ -62,6 +62,18 @@ async function replaceFlashcards(documentId, cards) {
   return await findFlashcardsByDocumentId(documentId);
 }
 
+async function findQuizByDocumentId(documentId) {
+  return await prisma.quiz.findUnique({ where: { documentId } });
+}
+
+async function upsertQuiz(documentId, questions) {
+  return await prisma.quiz.upsert({
+    where: { documentId },
+    update: { questions },
+    create: { documentId, questions },
+  });
+}
+
 module.exports = {
   createDocument,
   findDocumentsByWorkspaceId,
@@ -72,4 +84,6 @@ module.exports = {
   upsertSummary,
   findFlashcardsByDocumentId,
   replaceFlashcards,
+  findQuizByDocumentId,
+  upsertQuiz,
 };

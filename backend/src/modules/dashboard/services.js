@@ -87,10 +87,13 @@ async function getStreakInsights({ clerkId, userId }) {
   const since = new Date();
   since.setDate(since.getDate() - STREAK_LOOKBACK_DAYS);
 
-  const activities = await dashboardRepo.findStreakActivitiesSince(resolvedUserId, since);
+  const [activities, dueFlashcards] = await Promise.all([
+    dashboardRepo.findStreakActivitiesSince(resolvedUserId, since),
+    dashboardRepo.countDueFlashcards(resolvedUserId),
+  ]);
   const activeDays = buildActiveDaySet(activities);
 
-  return computeStreaks(activeDays);
+  return { ...computeStreaks(activeDays), dueFlashcards };
 }
 
 async function getHeatmap({ clerkId, userId }) {
