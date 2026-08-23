@@ -3,17 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { FileText, Sparkles, Layers } from "lucide-react";
+import { FileText, Sparkles, Layers, HelpCircle } from "lucide-react";
 import WorkspaceSidebar from "./components/WorkspaceSidebar";
 import ChatPanel from "@/features/chat/components/ChatPanel";
 import NotesPanel from "@/features/notes/components/NotesPanel";
 import SummaryView from "@/features/documents/components/SummaryView";
 import FlashcardsView from "@/features/documents/components/FlashcardsView";
+import QuizView from "@/features/documents/components/QuizView";
 import UploadModal from "@/features/uploads/components/UploadModal";
 import Dropdown from "@/components/Dropdown";
 import Skeleton from "@/components/Skeleton";
 import { uploadDocument } from "@/features/uploads/uploads.services";
 import { listConversations } from "@/features/chat/chat.services";
+import { getReviewStats } from "@/features/review/review.services";
 import {
   getWorkspace,
   getWorkspaceDocuments,
@@ -34,6 +36,7 @@ const RIGHT_PANEL_OPTIONS = [
   { value: "notes", label: "Notes", icon: <FileText size={14} /> },
   { value: "summary", label: "Summary", icon: <Sparkles size={14} /> },
   { value: "flashcards", label: "Flashcards", icon: <Layers size={14} /> },
+  { value: "quiz", label: "Quiz", icon: <HelpCircle size={14} /> },
 ];
 
 export default function WorkspacePage({ workspaceId }) {
@@ -54,6 +57,7 @@ export default function WorkspacePage({ workspaceId }) {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notesWidth, setNotesWidth] = useState(DEFAULT_NOTES_WIDTH);
+  const [dueReviewCount, setDueReviewCount] = useState(0);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -64,6 +68,7 @@ export default function WorkspacePage({ workspaceId }) {
         getWorkspace(workspaceId),
         getWorkspaceDocuments(workspaceId),
         listConversations(workspaceId),
+        getReviewStats(workspaceId),
       ]);
 
       if (cancelled) return;
@@ -71,6 +76,7 @@ export default function WorkspacePage({ workspaceId }) {
       if (results[0].status === "fulfilled") setWorkspace(results[0].value ?? null);
       if (results[1].status === "fulfilled") setDocuments(results[1].value ?? []);
       if (results[2].status === "fulfilled") setConversations(results[2].value ?? []);
+      if (results[3].status === "fulfilled") setDueReviewCount(results[3].value?.dueCount ?? 0);
 
       setConversationsLoading(false);
       setPageLoading(false);
@@ -187,7 +193,9 @@ export default function WorkspacePage({ workspaceId }) {
       >
         <div className="h-[70vh] transition-[width] duration-200 lg:h-full lg:w-[var(--sidebar-w)] lg:shrink-0 lg:mr-4">
           <WorkspaceSidebar
+            workspaceId={workspaceId}
             workspaceName={workspaceName}
+            dueReviewCount={dueReviewCount}
             documents={documents}
             conversations={conversations}
             conversationsLoading={conversationsLoading}
@@ -251,6 +259,15 @@ export default function WorkspacePage({ workspaceId }) {
             {rightPanelTab === "flashcards" && (
               <div className="h-full overflow-y-auto rounded-card bg-paper-white">
                 <FlashcardsView
+                  key={selectedDocument?.id}
+                  workspaceId={workspaceId}
+                  documentId={selectedDocument?.id}
+                />
+              </div>
+            )}
+            {rightPanelTab === "quiz" && (
+              <div className="h-full overflow-y-auto rounded-card bg-paper-white">
+                <QuizView
                   key={selectedDocument?.id}
                   workspaceId={workspaceId}
                   documentId={selectedDocument?.id}

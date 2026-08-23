@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
+import Link from "next/link";
+import { RefreshCw, ChevronLeft, ChevronRight, RotateCw, GraduationCap } from "lucide-react";
 import { getFlashcards, generateFlashcards } from "../documents.services";
 import { NoDocumentSelected, GenerateEmptyState, PanelSkeleton } from "./PanelStates";
 
@@ -79,6 +80,14 @@ export default function FlashcardsView({ workspaceId, documentId }) {
           <RotateCw size={11} /> Tap to flip
         </span>
       </button>
+
+      <Link
+        href={`/workspace/${workspaceId}/review`}
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-carbon-black px-3 py-1.5 text-caption font-medium text-paper-white transition-opacity hover:opacity-80"
+      >
+        <GraduationCap size={13} />
+        Start review session
+      </Link>
 
       <div className="flex items-center justify-between">
         <button

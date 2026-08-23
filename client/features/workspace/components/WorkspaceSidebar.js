@@ -13,6 +13,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   MessageSquare,
+  GraduationCap,
 } from "lucide-react";
 import Skeleton from "@/components/Skeleton";
 
@@ -22,6 +23,7 @@ const TABS = [
 ];
 
 export default function WorkspaceSidebar({
+  workspaceId,
   workspaceName,
   documents = [],
   conversations = [],
@@ -38,6 +40,7 @@ export default function WorkspaceSidebar({
   onSelectDocument,
   onSelectConversation,
   onNewChat,
+  dueReviewCount = 0,
 }) {
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(workspaceName);
@@ -72,6 +75,19 @@ export default function WorkspaceSidebar({
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate transition-colors hover:bg-mist-gray hover:text-carbon-black"
         >
           <ArrowLeft size={16} />
+        </Link>
+
+        <Link
+          href={`/workspace/${workspaceId}/review`}
+          aria-label="Study"
+          className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate transition-colors hover:bg-mist-gray hover:text-carbon-black"
+        >
+          <GraduationCap size={16} />
+          {dueReviewCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-carbon-black px-1 font-mono text-[10px] text-paper-white">
+              {dueReviewCount > 99 ? "99+" : dueReviewCount}
+            </span>
+          )}
         </Link>
 
         <div className="my-1 h-px w-8 shrink-0 bg-ash" />
@@ -124,6 +140,21 @@ export default function WorkspaceSidebar({
             <PanelLeftClose size={15} />
           </button>
         </div>
+
+        <Link
+          href={`/workspace/${workspaceId}/review`}
+          className="flex items-center justify-between rounded-lg bg-mist-gray px-3 py-2 text-body-sm font-medium text-carbon-black transition-colors hover:bg-ash/60"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <GraduationCap size={14} />
+            Study
+          </span>
+          {dueReviewCount > 0 && (
+            <span className="rounded-full bg-carbon-black px-1.5 py-0.5 font-mono text-[10px] text-paper-white">
+              {dueReviewCount > 99 ? "99+" : dueReviewCount} due
+            </span>
+          )}
+        </Link>
 
         {editing ? (
           <div className="flex items-center gap-1.5">
