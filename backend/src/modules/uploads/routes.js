@@ -2,6 +2,8 @@ const router = require('express').Router({ mergeParams: true });
 const uploadsController = require('./controllers');
 const { requireAuth } = require('../../middleware/auth');
 const { requireWorkspaceRole } = require('../../middleware/access');
+const { validateBody } = require('../../middleware/validate');
+const { uploadDocumentSchema, generateFlashcardsSchema } = require('./validation');
 
 router.get('/', requireAuth, requireWorkspaceRole('VIEWER'), uploadsController.list);
 router.post(
@@ -9,9 +11,16 @@ router.post(
   requireAuth,
   requireWorkspaceRole('EDITOR'),
   uploadsController.handleUpload,
+  validateBody(uploadDocumentSchema),
   uploadsController.create
 );
 router.delete('/:documentId', requireAuth, requireWorkspaceRole('EDITOR'), uploadsController.remove);
+router.post(
+  '/:documentId/retry',
+  requireAuth,
+  requireWorkspaceRole('EDITOR'),
+  uploadsController.retryIngestion
+);
 
 router.get(
   '/:documentId/summary',
@@ -35,6 +44,7 @@ router.post(
   '/:documentId/flashcards',
   requireAuth,
   requireWorkspaceRole('EDITOR'),
+  validateBody(generateFlashcardsSchema),
   uploadsController.generateFlashcards
 );
 

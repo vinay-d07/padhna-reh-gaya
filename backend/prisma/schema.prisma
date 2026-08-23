@@ -181,6 +181,11 @@ model Document {
 
   status DocumentStatus @default(PROCESSING)
 
+  // Coarse ingestion progress (0-100), updated by the ingestion worker as a
+  // job moves through download -> parse/embed -> finalize. Only meaningful
+  // while status is PROCESSING.
+  ingestProgress Int @default(0)
+
   errorMessage String?
 
   summary Summary?

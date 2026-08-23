@@ -45,15 +45,29 @@ boundary while the product is still a single-team, pre-scale project.
 - `lanchain` can't be scaled independently of `backend`, even though it's
   the more resource-intensive half (local embedding inference, OCR).
 - A crash inside `lanchain` (e.g. an unhandled parsing error on a malformed
-  PDF) takes down the same process handling unrelated API requests.
-- Document ingestion currently runs as an unawaited async call inside the
-  request process (`uploadDocument` → `ingestDocumentInBackground`) with no
-  retry or dead-letter handling — a process restart mid-ingestion strands
-  the document at `PROCESSING` forever.
+  PDF) still takes down the same process handling unrelated API requests —
+  this is now true of `worker` rather than `api` (see below), which is a
+  smaller blast radius but not the full fix.
+
+**Update (Phase 1):** the "no retry/dead-letter handling" cost above is
+resolved without the full HTTP-service split. Ingestion now runs on a
+BullMQ + Redis job queue (`backend/src/lib/queue.js`,
+`backend/src/jobs/ingestionWorker.js`), consumed by a separate `worker`
+process/container (`backend/src/worker.js`, the `worker` service in
+`docker-compose.yml`) rather than inline in the request process. Jobs get
+3 attempts with exponential backoff; a document that exhausts retries
+flips to `FAILED` and its BullMQ job is kept (not `removeOnFail`'d) as the
+dead-letter record, recoverable via `POST /documents/:id/retry`. This
+already decouples ingestion's *execution* from the API process — `lanchain`
+itself is still `require`d in-process by both `api` and `worker` (same
+image, same dynamic-import bridge below), so the remaining costs (can't
+scale/deploy `lanchain` independently, still built into the same image)
+stand as-is.
 
 ## Planned change
 
-Phase 1 of `features.md` covers splitting this into a real internal HTTP
-service (Express/Fastify) fronted by a background job queue (BullMQ +
-Redis) for ingestion specifically — decoupling `lanchain`'s deploy/scale
-lifecycle from `backend`'s and adding retry semantics for ingestion.
+Splitting `lanchain` into its own HTTP service (Express/Fastify), so it can
+be deployed and scaled independently of `backend`/`worker`, remains
+deferred — revisit if `lanchain`'s resource profile (embedding inference,
+OCR) actually becomes a bottleneck shared with the API, or scaling
+`backend` and `lanchain` independently becomes a real requirement.

@@ -2,6 +2,7 @@ import { loadAndSplitPdfBuffer } from "./parsing/pdfLoader.js";
 import { loadAndSplitDocxBuffer, loadAndSplitPptxBuffer } from "./parsing/officeLoader.js";
 import { splitPages } from "./parsing/genericLoader.js";
 import { getVectorStore, deleteCollection } from "./vectorStore.js";
+import logger from "./logger.js";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
@@ -30,21 +31,35 @@ export async function ingestDocument({ buffer, collectionName, mimeType, metadat
   if (!buffer) throw new Error("buffer is required");
   if (!collectionName) throw new Error("collectionName is required");
 
-  const { documents, pageCount } = await parseBuffer(buffer, mimeType, {
-    ...metadata,
-    collectionName,
-  });
+  const startedAt = Date.now();
+  logger.info({ collectionName, mimeType, bytes: buffer.length }, "ingestion started");
 
-  if (documents.length === 0) {
-    return { chunkCount: 0, pageCount };
+  try {
+    const { documents, pageCount } = await parseBuffer(buffer, mimeType, {
+      ...metadata,
+      collectionName,
+    });
+
+    if (documents.length === 0) {
+      logger.warn({ collectionName, pageCount }, "ingestion produced no chunks");
+      return { chunkCount: 0, pageCount };
+    }
+
+    const vectorStore = getVectorStore(collectionName);
+    await vectorStore.addDocuments(documents);
+
+    logger.info(
+      { collectionName, pageCount, chunkCount: documents.length, durationMs: Date.now() - startedAt },
+      "ingestion completed"
+    );
+    return { chunkCount: documents.length, pageCount };
+  } catch (error) {
+    logger.error({ collectionName, err: error, durationMs: Date.now() - startedAt }, "ingestion failed");
+    throw error;
   }
-
-  const vectorStore = getVectorStore(collectionName);
-  await vectorStore.addDocuments(documents);
-
-  return { chunkCount: documents.length, pageCount };
 }
 
 export async function deleteDocumentVectors(collectionName) {
   await deleteCollection(collectionName);
+  logger.info({ collectionName }, "vectors deleted");
 }

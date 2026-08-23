@@ -1,67 +1,45 @@
 const chatService = require('./services');
+const asyncHandler = require('../../lib/asyncHandler');
 
-async function listConversations(req, res) {
-  try {
-    const { workspaceId } = req.params;
-    const conversations = await chatService.listConversations(workspaceId);
-    return res.status(200).json({
-      success: true,
-      data: conversations,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Workspace not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const listConversations = asyncHandler(async (req, res) => {
+  const { workspaceId } = req.params;
+  const conversations = await chatService.listConversations(workspaceId);
+  return res.status(200).json({
+    success: true,
+    data: conversations,
+  });
+});
 
-async function createConversation(req, res) {
-  try {
-    const { workspaceId } = req.params;
-    const { title } = req.body;
-    const conversation = await chatService.createConversation({
-      workspaceId,
-      clerkId: req.clerkId,
-      title,
-    });
-    return res.status(201).json({
-      success: true,
-      message: 'Conversation created successfully',
-      data: conversation,
-    });
-  } catch (error) {
-    const statusCode =
-      error.message === 'Workspace not found' || error.message === 'User not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const createConversation = asyncHandler(async (req, res) => {
+  const { workspaceId } = req.params;
+  const { title } = req.body;
+  const conversation = await chatService.createConversation({
+    workspaceId,
+    clerkId: req.clerkId,
+    title,
+  });
+  return res.status(201).json({
+    success: true,
+    message: 'Conversation created successfully',
+    data: conversation,
+  });
+});
 
-async function listMessages(req, res) {
-  try {
-    const { conversationId } = req.params;
-    const messages = await chatService.getMessages(conversationId);
-    return res.status(200).json({
-      success: true,
-      data: messages,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Conversation not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const listMessages = asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
+  const messages = await chatService.getMessages(conversationId);
+  return res.status(200).json({
+    success: true,
+    data: messages,
+  });
+});
 
 // Streams the assistant's answer as Server-Sent Events:
 //   event: token  data: { "token": "..." }      (repeated)
 //   event: done   data: { "assistantMessage": {...} }
 //   event: error  data: { "message": "..." }
+// Kept outside asyncHandler/errorHandler: once headers flip to SSE, errors
+// have to be written into the stream, not turned into a JSON response.
 async function sendMessage(req, res) {
   const { conversationId } = req.params;
   const { content } = req.body;

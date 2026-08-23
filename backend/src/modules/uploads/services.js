@@ -1,6 +1,10 @@
 const { randomUUID } = require('crypto');
 const { supabase, DOCUMENTS_BUCKET, ensureBucket } = require('../../lib/supabase');
 const { loadRag } = require('../../lib/rag');
+// Called as `queue.enqueueIngestion(...)` rather than destructured so tests
+// can vi.spyOn the module's own export instead of hitting a real Redis.
+const queue = require('../../lib/queue');
+const { AppError } = require('../../lib/errors');
 const uploadsRepo = require('./repo');
 const workspaceRepo = require('../workspaces/repo');
 const userRepo = require('../users/repo');
@@ -79,10 +83,20 @@ async function uploadDocument({ workspaceId, clerkId, file, title }) {
   }
 
   // Ingestion (parsing, chunking, embedding, upserting into Qdrant) can take
-  // a while for large/scanned PDFs — don't make the caller wait for it. The
-  // document is returned with status PROCESSING and flips to READY/FAILED
-  // once ingestion settles.
-  ingestDocumentInBackground(document, file.buffer, file.mimetype);
+  // a while for large/scanned PDFs — hand it to the background job queue
+  // rather than making the caller wait. The document is returned with
+  // status PROCESSING and flips to READY/FAILED once the worker settles it
+  // (see src/jobs/ingestionWorker.js), with retry+backoff on transient
+  // failures and a dead-letter record (the failed BullMQ job) if it never
+  // recovers.
+  await queue.enqueueIngestion({
+    documentId: document.id,
+    storageKey,
+    mimeType: file.mimetype,
+    vectorNamespace: document.vectorNamespace,
+    documentTitle: document.title,
+    fileName: document.fileName,
+  });
 
   dashboardService
     .recordActivity({
@@ -96,30 +110,31 @@ async function uploadDocument({ workspaceId, clerkId, file, title }) {
   return document;
 }
 
-async function ingestDocumentInBackground(document, buffer, mimeType) {
-  try {
-    const { ingestDocument } = await loadRag();
-    const { pageCount } = await ingestDocument({
-      buffer,
-      collectionName: document.vectorNamespace,
-      mimeType,
-      metadata: {
-        documentId: document.id,
-        documentTitle: document.title,
-        source: document.fileName,
-      },
-    });
-    await uploadsRepo.updateDocumentStatus(document.id, {
-      status: 'READY',
-      pageCount,
-    });
-  } catch (error) {
-    console.error(`Ingestion failed for document ${document.id}:`, error);
-    await uploadsRepo.updateDocumentStatus(document.id, {
-      status: 'FAILED',
-      errorMessage: String(error.message || error).slice(0, 500),
-    });
+async function retryIngestion(workspaceId, documentId) {
+  const document = await uploadsRepo.findDocumentById(documentId);
+  if (!document || document.workspaceId !== workspaceId) {
+    throw new AppError('Document not found', 404);
   }
+  if (document.status !== 'FAILED') {
+    throw new AppError('Only a failed document can be retried', 400);
+  }
+
+  await uploadsRepo.updateDocumentStatus(documentId, {
+    status: 'PROCESSING',
+    ingestProgress: 0,
+    errorMessage: null,
+  });
+
+  await queue.enqueueIngestion({
+    documentId: document.id,
+    storageKey: document.storageKey,
+    mimeType: document.mimeType,
+    vectorNamespace: document.vectorNamespace,
+    documentTitle: document.title,
+    fileName: document.fileName,
+  });
+
+  return { ...document, status: 'PROCESSING', ingestProgress: 0, errorMessage: null };
 }
 
 async function listDocuments(workspaceId) {
@@ -234,6 +249,7 @@ module.exports = {
   uploadDocument,
   listDocuments,
   deleteDocument,
+  retryIngestion,
   generateSummary,
   getSummary,
   generateFlashcards,

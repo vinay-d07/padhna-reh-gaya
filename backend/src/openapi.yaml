@@ -1,0 +1,442 @@
+openapi: 3.0.3
+info:
+  title: Padhle API
+  description: >
+    REST API for Padhle — workspaces, document ingestion/RAG chat, notes, and
+    flashcard/summary generation. Auth is a Clerk session token, sent as a
+    `Bearer` token in the `Authorization` header.
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8080
+    description: Local dev
+security:
+  - bearerAuth: []
+tags:
+  - name: Users
+  - name: Workspaces
+  - name: Documents
+  - name: Notes
+  - name: Conversations
+  - name: Dashboard
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Clerk session token.
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data: {}
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+
+    Document:
+      type: object
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        title: { type: string }
+        fileName: { type: string }
+        mimeType: { type: string }
+        fileSize: { type: integer }
+        pageCount: { type: integer, nullable: true }
+        status: { type: string, enum: [PROCESSING, READY, FAILED] }
+        ingestProgress: { type: integer, minimum: 0, maximum: 100 }
+        errorMessage: { type: string, nullable: true }
+        vectorNamespace: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Workspace:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        icon: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+        coverImage: { type: string, nullable: true }
+        ownerId: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Note:
+      type: object
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        title: { type: string }
+        content: {}
+        wordCount: { type: integer }
+
+    Flashcard:
+      type: object
+      properties:
+        id: { type: string }
+        documentId: { type: string }
+        question: { type: string }
+        answer: { type: string }
+        order: { type: integer }
+
+    Conversation:
+      type: object
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        title: { type: string, nullable: true }
+        lastMessageAt: { type: string, format: date-time, nullable: true }
+
+  parameters:
+    ClerkId:
+      name: clerkId
+      in: path
+      required: true
+      schema: { type: string }
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: { type: string }
+    WorkspacePathId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string }
+    NoteId:
+      name: noteId
+      in: path
+      required: true
+      schema: { type: string }
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ValidationError:
+      description: Invalid request body
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Caller lacks the required workspace role
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+paths:
+  /users/signup:
+    post:
+      tags: [Users]
+      summary: Create or sync the authenticated user's profile from Clerk
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                name: { type: string }
+                imageUrl: { type: string }
+      responses:
+        '201': { description: User synced, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /users/{clerkId}:
+    get:
+      tags: [Users]
+      summary: Get a user profile (self only)
+      parameters:
+        - $ref: '#/components/parameters/ClerkId'
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Users]
+      summary: Delete a user profile (self only)
+      parameters:
+        - $ref: '#/components/parameters/ClerkId'
+      responses:
+        '200': { description: Deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /workspaces:
+    get:
+      tags: [Workspaces]
+      summary: List workspaces owned by the authenticated user
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Workspaces]
+      summary: Create a workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                icon: { type: string }
+                color: { type: string }
+                coverImage: { type: string }
+      responses:
+        '201': { description: Created }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /workspaces/{id}:
+    get:
+      tags: [Workspaces]
+      summary: Get a workspace
+      parameters: [{ $ref: '#/components/parameters/WorkspacePathId' }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Workspaces]
+      summary: Update a workspace
+      parameters: [{ $ref: '#/components/parameters/WorkspacePathId' }]
+      responses:
+        '200': { description: Updated }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Workspaces]
+      summary: Delete a workspace (owner only)
+      parameters: [{ $ref: '#/components/parameters/WorkspacePathId' }]
+      responses:
+        '200': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /workspaces/{workspaceId}/documents:
+    get:
+      tags: [Documents]
+      summary: List documents in a workspace
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Document' } }
+    post:
+      tags: [Documents]
+      summary: Upload a document (PDF/DOCX/PPTX/TXT, max 25MB) — queues background ingestion
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                title: { type: string }
+      responses:
+        '201':
+          description: Uploaded — status starts PROCESSING, poll GET .../documents for ingestProgress
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties: { data: { $ref: '#/components/schemas/Document' } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /workspaces/{workspaceId}/documents/{documentId}:
+    delete:
+      tags: [Documents]
+      summary: Delete a document
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /workspaces/{workspaceId}/documents/{documentId}/retry:
+    post:
+      tags: [Documents]
+      summary: Re-queue ingestion for a document stuck in FAILED (dead-letter recovery)
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200': { description: Re-queued }
+        '400': { description: Document is not in a failed state }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /workspaces/{workspaceId}/documents/{documentId}/summary:
+    get:
+      tags: [Documents]
+      summary: Get a document's summary
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Documents]
+      summary: Generate (or regenerate) a document's summary
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '201': { description: Generated }
+        '400': { description: Document is still processing }
+
+  /workspaces/{workspaceId}/documents/{documentId}/flashcards:
+    get:
+      tags: [Documents]
+      summary: Get a document's flashcards
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Flashcard' } }
+    post:
+      tags: [Documents]
+      summary: Generate (or regenerate) flashcards for a document
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count: { type: integer, minimum: 1, maximum: 30, default: 10 }
+      responses:
+        '201': { description: Generated }
+
+  /workspaces/{workspaceId}/notes:
+    get:
+      tags: [Notes]
+      summary: List notes in a workspace
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Notes]
+      summary: Create a note
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                content: {}
+      responses:
+        '201': { description: Created }
+
+  /notes/{noteId}:
+    patch:
+      tags: [Notes]
+      summary: Update a note
+      parameters: [{ $ref: '#/components/parameters/NoteId' }]
+      responses:
+        '200': { description: Updated }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Notes]
+      summary: Delete a note
+      parameters: [{ $ref: '#/components/parameters/NoteId' }]
+      responses:
+        '200': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /workspaces/{workspaceId}/conversations:
+    get:
+      tags: [Conversations]
+      summary: List conversations in a workspace
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Conversations]
+      summary: Create a conversation
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '201': { description: Created }
+
+  /conversations/{conversationId}/messages:
+    get:
+      tags: [Conversations]
+      summary: List messages in a conversation
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Conversations]
+      summary: Send a message and stream the assistant's answer via Server-Sent Events
+      description: >
+        Response is `text/event-stream`, not JSON: `event: token` (repeated),
+        then `event: done` with the persisted assistant message, or
+        `event: error`.
+      parameters: [{ $ref: '#/components/parameters/ConversationId' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+      responses:
+        '200': { description: SSE stream, content: { text/event-stream: { schema: { type: string } } } }
+
+  /dashboard/insights:
+    get:
+      tags: [Dashboard]
+      summary: Get the authenticated user's study streak
+      responses:
+        '200': { description: OK }
+
+  /dashboard/activity:
+    get:
+      tags: [Dashboard]
+      summary: Get the authenticated user's activity heatmap (last 14 weeks)
+      responses:
+        '200': { description: OK }
+

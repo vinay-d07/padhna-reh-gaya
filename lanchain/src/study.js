@@ -1,5 +1,6 @@
 import { getLLM } from "./llm.js";
 import { scrollAllChunks } from "./vectorStore.js";
+import logger from "./logger.js";
 
 // Rough char budget to keep the whole-document prompt within the model's
 // context window without pulling in a tokenizer just for this.
@@ -98,7 +99,15 @@ export async function generateFlashcards({ collectionName, documentTitle, count 
   ]);
 
   const raw = typeof response.content === "string" ? response.content : String(response.content);
-  const cards = parseFlashcards(raw);
+
+  let cards;
+  try {
+    cards = parseFlashcards(raw);
+  } catch (error) {
+    logger.error({ collectionName, err: error }, "failed to parse flashcards JSON from model output");
+    throw error;
+  }
+
   if (cards.length === 0) {
     throw new Error("The model did not return any usable flashcards");
   }

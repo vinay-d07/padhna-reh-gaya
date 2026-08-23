@@ -1,36 +1,21 @@
 const dashboardService = require('./services');
+const asyncHandler = require('../../lib/asyncHandler');
 
-async function insights(req, res) {
-  try {
-    const data = await dashboardService.getStreakInsights({ clerkId: req.clerkId });
-    return res.status(200).json({
-      success: true,
-      data,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'User not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const insights = asyncHandler(async (req, res) => {
+  const data = await dashboardService.getStreakInsights({ clerkId: req.clerkId });
+  return res.status(200).json({
+    success: true,
+    data,
+  });
+});
 
-async function activity(req, res) {
-  try {
-    const data = await dashboardService.getHeatmap({ clerkId: req.clerkId });
-    return res.status(200).json({
-      success: true,
-      data,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'User not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const activity = asyncHandler(async (req, res) => {
+  const data = await dashboardService.getHeatmap({ clerkId: req.clerkId });
+  return res.status(200).json({
+    success: true,
+    data,
+  });
+});
 
 module.exports = {
   insights,

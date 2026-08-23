@@ -44,6 +44,7 @@ async function main() {
     checkHttp('client', process.env.CLIENT_URL || 'http://localhost:3000/'),
     checkTcp('mongo', 'localhost', 27017),
     checkTcp('qdrant', 'localhost', 6333),
+    checkTcp('redis', 'localhost', 6379),
   ];
 
   const results = await Promise.all(checks);

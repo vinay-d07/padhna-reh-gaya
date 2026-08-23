@@ -1,97 +1,58 @@
 const workspaceService = require('./services');
+const asyncHandler = require('../../lib/asyncHandler');
 
-async function create(req, res) {
-  try {
-    const { name, description, icon, color, coverImage } = req.body;
-    const workspace = await workspaceService.createWorkspace({
-      clerkId: req.clerkId,
-      name,
-      description,
-      icon,
-      color,
-      coverImage,
-    });
-    return res.status(201).json({
-      success: true,
-      message: 'Workspace created successfully',
-      data: workspace,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'User not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const create = asyncHandler(async (req, res) => {
+  const { name, description, icon, color, coverImage } = req.body;
+  const workspace = await workspaceService.createWorkspace({
+    clerkId: req.clerkId,
+    name,
+    description,
+    icon,
+    color,
+    coverImage,
+  });
+  return res.status(201).json({
+    success: true,
+    message: 'Workspace created successfully',
+    data: workspace,
+  });
+});
 
-async function list(req, res) {
-  try {
-    const workspaces = await workspaceService.listWorkspaces(req.clerkId);
-    return res.status(200).json({
-      success: true,
-      data: workspaces,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'User not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const list = asyncHandler(async (req, res) => {
+  const workspaces = await workspaceService.listWorkspaces(req.clerkId);
+  return res.status(200).json({
+    success: true,
+    data: workspaces,
+  });
+});
 
-async function getOne(req, res) {
-  try {
-    const { id } = req.params;
-    const workspace = await workspaceService.getWorkspace(id);
-    return res.status(200).json({
-      success: true,
-      data: workspace,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Workspace not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const getOne = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const workspace = await workspaceService.getWorkspace(id);
+  return res.status(200).json({
+    success: true,
+    data: workspace,
+  });
+});
 
-async function update(req, res) {
-  try {
-    const { id } = req.params;
-    const workspace = await workspaceService.updateWorkspace(id, req.body);
-    return res.status(200).json({
-      success: true,
-      message: 'Workspace updated successfully',
-      data: workspace,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Workspace not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const update = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const workspace = await workspaceService.updateWorkspace(id, req.body);
+  return res.status(200).json({
+    success: true,
+    message: 'Workspace updated successfully',
+    data: workspace,
+  });
+});
 
-async function remove(req, res) {
-  try {
-    const { id } = req.params;
-    await workspaceService.deleteWorkspace(id);
-    return res.status(200).json({
-      success: true,
-      message: 'Workspace deleted successfully',
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Workspace not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const remove = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await workspaceService.deleteWorkspace(id);
+  return res.status(200).json({
+    success: true,
+    message: 'Workspace deleted successfully',
+  });
+});
 
 module.exports = {
   create,

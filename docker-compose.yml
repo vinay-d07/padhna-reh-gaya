@@ -40,6 +40,18 @@ services:
     volumes:
       - qdrant-data:/qdrant/storage
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: .
@@ -51,13 +63,40 @@ services:
       DATABASE_URL: mongodb://mongo:27017/padhle?replicaSet=rs0
       QDRANT_URL: http://qdrant:6333
       QDRANT_API_KEY: ""
+      REDIS_URL: redis://redis:6379
     depends_on:
       mongo:
         condition: service_healthy
       qdrant:
         condition: service_started
+      redis:
+        condition: service_healthy
     ports:
       - "8080:8080"
+
+  # Runs the BullMQ ingestion worker (see backend/src/jobs/ingestionWorker.js)
+  # as its own container from the same image as `api`, so a slow document
+  # ingestion never blocks the HTTP server and either can be scaled alone.
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["node", "src/worker.js"]
+    env_file:
+      - backend/.env
+      - lanchain/.env
+    environment:
+      DATABASE_URL: mongodb://mongo:27017/padhle?replicaSet=rs0
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ""
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongo:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   client:
     build:
@@ -86,3 +125,4 @@ services:
 volumes:
   mongo-data:
   qdrant-data:
+  redis-data:

@@ -1,6 +1,7 @@
 import { getLLM } from "./llm.js";
 import { PER_COLLECTION_K, RETRIEVAL_K } from "./config.js";
 import { getVectorStore } from "./vectorStore.js";
+import logger from "./logger.js";
 
 const SYSTEM_PROMPT = `You are a helpful assistant that answers questions about the user's uploaded PDF documents.
 
@@ -28,9 +29,10 @@ async function retrieveContext(question, collectionNames) {
         const store = getVectorStore(collectionName);
         const results = await store.similaritySearchWithScore(question, PER_COLLECTION_K);
         return results.map(([doc, score]) => ({ doc, score }));
-      } catch {
+      } catch (error) {
         // Collection may not exist yet (document still processing) — skip it
         // rather than failing the whole answer.
+        logger.debug({ collectionName, err: error }, "skipping collection in retrieval");
         return [];
       }
     })

@@ -1,5 +1,6 @@
 const multer = require('multer');
 const uploadService = require('./services');
+const asyncHandler = require('../../lib/asyncHandler');
 
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
@@ -28,151 +29,104 @@ function handleUpload(req, res, next) {
   });
 }
 
-async function create(req, res) {
-  try {
-    const { workspaceId } = req.params;
-    const { title } = req.body;
-    const document = await uploadService.uploadDocument({
-      workspaceId,
-      clerkId: req.clerkId,
-      title,
-      file: req.file,
-    });
-    return res.status(201).json({
-      success: true,
-      message: 'Document uploaded successfully',
-      data: document,
-    });
-  } catch (error) {
-    const statusCode =
-      error.message === 'Workspace not found' || error.message === 'User not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const create = asyncHandler(async (req, res) => {
+  const { workspaceId } = req.params;
+  const { title } = req.body;
+  const document = await uploadService.uploadDocument({
+    workspaceId,
+    clerkId: req.clerkId,
+    title,
+    file: req.file,
+  });
+  return res.status(201).json({
+    success: true,
+    message: 'Document uploaded successfully',
+    data: document,
+  });
+});
 
-async function list(req, res) {
-  try {
-    const { workspaceId } = req.params;
-    const documents = await uploadService.listDocuments(workspaceId);
-    return res.status(200).json({
-      success: true,
-      data: documents,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Workspace not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const list = asyncHandler(async (req, res) => {
+  const { workspaceId } = req.params;
+  const documents = await uploadService.listDocuments(workspaceId);
+  return res.status(200).json({
+    success: true,
+    data: documents,
+  });
+});
 
-async function remove(req, res) {
-  try {
-    const { workspaceId, documentId } = req.params;
-    await uploadService.deleteDocument(workspaceId, documentId);
-    return res.status(200).json({
-      success: true,
-      message: 'Document deleted successfully',
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Document not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const remove = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  await uploadService.deleteDocument(workspaceId, documentId);
+  return res.status(200).json({
+    success: true,
+    message: 'Document deleted successfully',
+  });
+});
 
-async function generateSummary(req, res) {
-  try {
-    const { workspaceId, documentId } = req.params;
-    const summary = await uploadService.generateSummary({
-      workspaceId,
-      documentId,
-      userId: req.dbUser.id,
-    });
-    return res.status(201).json({
-      success: true,
-      message: 'Summary generated successfully',
-      data: summary,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Document not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const retryIngestion = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const document = await uploadService.retryIngestion(workspaceId, documentId);
+  return res.status(200).json({
+    success: true,
+    message: 'Ingestion re-queued',
+    data: document,
+  });
+});
 
-async function getSummary(req, res) {
-  try {
-    const { workspaceId, documentId } = req.params;
-    const summary = await uploadService.getSummary(workspaceId, documentId);
-    return res.status(200).json({
-      success: true,
-      data: summary,
-    });
-  } catch (error) {
-    const statusCode =
-      error.message === 'Document not found' || error.message === 'Summary not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const generateSummary = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const summary = await uploadService.generateSummary({
+    workspaceId,
+    documentId,
+    userId: req.dbUser.id,
+  });
+  return res.status(201).json({
+    success: true,
+    message: 'Summary generated successfully',
+    data: summary,
+  });
+});
 
-async function generateFlashcards(req, res) {
-  try {
-    const { workspaceId, documentId } = req.params;
-    const count = Math.min(Math.max(Number(req.body?.count) || 10, 1), 30);
-    const flashcards = await uploadService.generateFlashcards({
-      workspaceId,
-      documentId,
-      userId: req.dbUser.id,
-      count,
-    });
-    return res.status(201).json({
-      success: true,
-      message: 'Flashcards generated successfully',
-      data: flashcards,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Document not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const getSummary = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const summary = await uploadService.getSummary(workspaceId, documentId);
+  return res.status(200).json({
+    success: true,
+    data: summary,
+  });
+});
 
-async function getFlashcards(req, res) {
-  try {
-    const { workspaceId, documentId } = req.params;
-    const flashcards = await uploadService.getFlashcards(workspaceId, documentId);
-    return res.status(200).json({
-      success: true,
-      data: flashcards,
-    });
-  } catch (error) {
-    const statusCode = error.message === 'Document not found' ? 404 : 400;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message,
-    });
-  }
-}
+const generateFlashcards = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const count = req.body?.count ?? 10;
+  const flashcards = await uploadService.generateFlashcards({
+    workspaceId,
+    documentId,
+    userId: req.dbUser.id,
+    count,
+  });
+  return res.status(201).json({
+    success: true,
+    message: 'Flashcards generated successfully',
+    data: flashcards,
+  });
+});
+
+const getFlashcards = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const flashcards = await uploadService.getFlashcards(workspaceId, documentId);
+  return res.status(200).json({
+    success: true,
+    data: flashcards,
+  });
+});
 
 module.exports = {
   handleUpload,
   create,
   list,
   remove,
+  retryIngestion,
   generateSummary,
   getSummary,
   generateFlashcards,
