@@ -113,3 +113,79 @@ export async function generateFlashcards({ collectionName, documentTitle, count 
   }
   return cards;
 }
+
+const QUIZ_PROMPT = `You are an expert study assistant. Generate exactly {count} multiple-choice quiz questions from the document content below, covering its most important, testable facts and concepts.
+
+Rules:
+- Base every question ONLY on the document text — no outside knowledge.
+- Each question must have exactly 4 options, with exactly one correct.
+- correctIndex is the 0-based index of the correct option.
+- explanation is a 1-2 sentence explanation of why the correct answer is right, grounded in the document.
+- Respond with ONLY a JSON array, no prose, no markdown fences, in this exact shape:
+[{"question": "...", "options": ["...", "...", "...", "..."], "correctIndex": 0, "explanation": "..."}, ...]
+
+Document: "{title}"
+
+Content:
+{content}`;
+
+function parseQuiz(raw) {
+  const cleaned = raw
+    .trim()
+    .replace(/^```(json)?/i, "")
+    .replace(/```$/, "")
+    .trim();
+  const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+  const jsonText = jsonMatch ? jsonMatch[0] : cleaned;
+  const parsed = JSON.parse(jsonText);
+  if (!Array.isArray(parsed)) {
+    throw new Error("Expected a JSON array of quiz questions");
+  }
+  return parsed
+    .map((q) => ({
+      question: String(q?.question || "").trim(),
+      options: Array.isArray(q?.options) ? q.options.map((o) => String(o).trim()) : [],
+      correctIndex: Number.isInteger(q?.correctIndex) ? q.correctIndex : -1,
+      explanation: String(q?.explanation || "").trim(),
+    }))
+    .filter(
+      (q) =>
+        q.question &&
+        q.options.length === 4 &&
+        q.options.every(Boolean) &&
+        q.correctIndex >= 0 &&
+        q.correctIndex < 4
+    );
+}
+
+export async function generateQuiz({ collectionName, documentTitle, count = 5 }) {
+  const content = await getDocumentText(collectionName);
+  if (!content) {
+    throw new Error("No processed content found for this document yet");
+  }
+
+  const llm = getLLM();
+  const response = await llm.invoke([
+    {
+      role: "user",
+      content: QUIZ_PROMPT.replace("{count}", String(count))
+        .replace("{title}", documentTitle || "Untitled")
+        .replace("{content}", content),
+    },
+  ]);
+
+  const raw = typeof response.content === "string" ? response.content : String(response.content);
+
+  let questions;
+  try {
+    questions = parseQuiz(raw);
+  } catch (error) {
+    logger.error({ collectionName, err: error }, "failed to parse quiz JSON from model output");
+    throw error;
+  }
+
+  if (questions.length === 0) {
+    throw new Error("The model did not return any usable quiz questions");
+  }
+  return questions;
+}
