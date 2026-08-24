@@ -38,6 +38,48 @@ const FEATURES = [
     description:
       "Search by meaning, not just keywords, across every document in a workspace at once.",
   },
+  {
+    tag: "Repeat",
+    title: "Spaced repetition",
+    isNew: true,
+    description:
+      "Grade each flashcard Again, Hard, Good, or Easy and SM-2 reschedules it — you review exactly the ones about to slip.",
+  },
+  {
+    tag: "Test",
+    title: "Quiz mode",
+    isNew: true,
+    description:
+      "Auto-generated multiple-choice quizzes per document, scored instantly with an explanation behind every answer.",
+  },
+  {
+    tag: "Together",
+    title: "Study rooms",
+    isNew: true,
+    description:
+      "Drop into a live room, see who else is working as an avatar, and watch everyone's study timer run in real time.",
+  },
+  {
+    tag: "Lock",
+    title: "Private rooms",
+    isNew: true,
+    description:
+      "Keep a room invite-only behind a join code — share the code or the link, either one gets a friend in.",
+  },
+  {
+    tag: "Chat",
+    title: "Room chat",
+    isNew: true,
+    description:
+      "A lightweight group chat alongside every room, so you can ask a quick question without breaking focus.",
+  },
+  {
+    tag: "Focus",
+    title: "Personal timer",
+    isNew: true,
+    description:
+      "Start a solo session right from the dashboard — no room required, just a clock counting your focus time.",
+  },
 ];
 
 export default function Features() {
@@ -45,11 +87,12 @@ export default function Features() {
     <section id="features" className="mx-auto w-full max-w-[1200px] px-6 py-20">
       <ScrollReveal as="div" className="mb-16 max-w-2xl">
         <h2 className="font-display text-heading uppercase text-carbon-black sm:text-heading-lg">
-          Everything a workspace needs
+          Everything you need to actually study
         </h2>
         <p className="mt-4 text-subheading text-slate">
-          One place to hold your documents, your questions, and the notes you
-          take along the way.
+          Your documents, your questions, and the notes you take along the
+          way — plus review, quizzes, and live study rooms to keep you
+          coming back.
         </p>
       </ScrollReveal>
 
@@ -59,8 +102,13 @@ export default function Features() {
             as="div"
             key={feature.title}
             delay={(index % 3) * 100}
-            className="flex flex-col gap-4 rounded-card bg-paper-white p-6"
+            className="relative flex flex-col gap-4 rounded-card bg-paper-white p-6"
           >
+            {feature.isNew && (
+              <span className="absolute right-6 top-6">
+                <Tag tone="yellow">New</Tag>
+              </span>
+            )}
             <Tag>{feature.tag}</Tag>
             <h3 className="font-sans text-heading-sm font-medium uppercase text-carbon-black">
               {feature.title}

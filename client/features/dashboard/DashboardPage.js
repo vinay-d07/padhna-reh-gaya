@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
+import { Users } from "lucide-react";
 import ActivityHeatmap from "./components/ActivityHeatmap";
 import StudyInsights from "./components/StudyInsights";
 import WorkspaceList from "./components/WorkspaceList";
 import CreateWorkspaceModal from "./components/CreateWorkspaceModal";
+import PersonalTimer from "./components/PersonalTimer";
 import Skeleton from "@/components/Skeleton";
 import { getWorkspaces, getStudyInsights, getActivity } from "./dash.services";
 
@@ -50,13 +53,23 @@ export default function DashboardPage() {
         <span className="font-display text-2xl uppercase tracking-wide text-carbon-black">
           padhle
         </span>
-        <UserButton
-          appearance={{
-            elements: {
-              userButtonAvatarBox: "h-9 w-9 rounded-lg border border-ash",
-            },
-          }}
-        />
+        <div className="flex items-center gap-4">
+          <PersonalTimer />
+          <Link
+            href="/rooms"
+            className="inline-flex items-center gap-2 rounded-lg bg-carbon-black px-4 py-2.5 text-body-sm font-medium text-paper-white transition-opacity hover:opacity-80"
+          >
+            <Users size={15} />
+            Study rooms
+          </Link>
+          <UserButton
+            appearance={{
+              elements: {
+                userButtonAvatarBox: "h-9 w-9 rounded-lg border border-ash",
+              },
+            }}
+          />
+        </div>
       </header>
 
       <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-10 px-6 pb-20">
@@ -95,8 +108,8 @@ function DashboardSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       <section className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full rounded-card" />
           ))}
         </div>

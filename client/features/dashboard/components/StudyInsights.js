@@ -2,10 +2,12 @@ export default function StudyInsights({ insights, workspaces = [] }) {
   const currentStreak = insights?.currentStreak ?? 0;
   const longestStreak = insights?.longestStreak ?? 0;
   const dueFlashcards = insights?.dueFlashcards ?? 0;
+  const studyMinutesToday = insights?.studyMinutesToday ?? 0;
   const totalDocuments = workspaces.reduce((sum, w) => sum + (w._count?.documents ?? 0), 0);
 
   const tiles = [
     { label: "Current streak", value: `${currentStreak}`, unit: "days", tone: "dark" },
+    { label: "Study time today", value: `${studyMinutesToday}`, unit: "min", tone: "light" },
     { label: "Due for review", value: `${dueFlashcards}`, unit: "cards", tone: dueFlashcards > 0 ? "accent" : "light" },
     { label: "Longest streak", value: `${longestStreak}`, unit: "days", tone: "light" },
     { label: "Workspaces", value: `${workspaces.length}`, tone: "light" },
@@ -13,7 +15,7 @@ export default function StudyInsights({ insights, workspaces = [] }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       {tiles.map((tile) => (
         <div
           key={tile.label}
