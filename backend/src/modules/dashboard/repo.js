@@ -5,6 +5,7 @@ const STREAK_ACTIVITY_TYPES = [
   'MESSAGE_SENT',
   'FLASHCARD_REVIEWED',
   'QUIZ_COMPLETED',
+  'STUDY_SESSION_ENDED',
 ];
 
 async function recordActivity({ userId, workspaceId, type, metadata }) {

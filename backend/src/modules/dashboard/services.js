@@ -1,5 +1,6 @@
 const dashboardRepo = require('./repo');
 const userRepo = require('../users/repo');
+const studySessionsRepo = require('../studySessions/repo');
 
 const HEATMAP_WEEKS = 14;
 const HEATMAP_DAYS = HEATMAP_WEEKS * 7;
@@ -87,13 +88,18 @@ async function getStreakInsights({ clerkId, userId }) {
   const since = new Date();
   since.setDate(since.getDate() - STREAK_LOOKBACK_DAYS);
 
-  const [activities, dueFlashcards] = await Promise.all([
+  const [activities, dueFlashcards, studySecondsToday] = await Promise.all([
     dashboardRepo.findStreakActivitiesSince(resolvedUserId, since),
     dashboardRepo.countDueFlashcards(resolvedUserId),
+    studySessionsRepo.sumDurationForUserSince(resolvedUserId, startOfDay(new Date())),
   ]);
   const activeDays = buildActiveDaySet(activities);
 
-  return { ...computeStreaks(activeDays), dueFlashcards };
+  return {
+    ...computeStreaks(activeDays),
+    dueFlashcards,
+    studyMinutesToday: Math.round(studySecondsToday / 60),
+  };
 }
 
 async function getHeatmap({ clerkId, userId }) {

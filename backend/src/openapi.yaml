@@ -18,6 +18,7 @@ tags:
   - name: Notes
   - name: Conversations
   - name: Study
+  - name: Rooms
   - name: Dashboard
 
 components:
@@ -121,6 +122,63 @@ components:
         isNew: { type: boolean }
         dueDate: { type: string, format: date-time, nullable: true }
 
+    StudyRoom:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        createdById: { type: string }
+        isPrivate: { type: boolean }
+        joinCode:
+          type: string
+          nullable: true
+          description: Only ever populated for the room's creator.
+        locked:
+          type: boolean
+          description: >
+            true when this is a private room the caller hasn't joined and
+            didn't supply a valid `code` for — participants/joinCode are
+            omitted in that case.
+        participantCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    RoomParticipantView:
+      type: object
+      properties:
+        userId: { type: string }
+        name: { type: string, nullable: true }
+        imageUrl: { type: string, nullable: true }
+        joinedAt: { type: string, format: date-time }
+        topic: { type: string, nullable: true }
+        activeSession:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string }
+            startedAt: { type: string, format: date-time }
+
+    RoomMessage:
+      type: object
+      properties:
+        id: { type: string }
+        roomId: { type: string }
+        userId: { type: string }
+        name: { type: string, nullable: true }
+        imageUrl: { type: string, nullable: true }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    StudySession:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        roomId: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
+        durationSeconds: { type: integer, nullable: true }
+
   parameters:
     ClerkId:
       name: clerkId
@@ -154,6 +212,16 @@ components:
       schema: { type: string }
     FlashcardId:
       name: flashcardId
+      in: path
+      required: true
+      schema: { type: string }
+    RoomId:
+      name: roomId
+      in: path
+      required: true
+      schema: { type: string }
+    SessionId:
+      name: sessionId
       in: path
       required: true
       schema: { type: string }
@@ -581,4 +649,225 @@ paths:
       summary: Get the authenticated user's activity heatmap (last 14 weeks)
       responses:
         '200': { description: OK }
+
+  /rooms:
+    get:
+      tags: [Rooms]
+      summary: List open (non-private) study rooms with a live participant count
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/StudyRoom' } }
+    post:
+      tags: [Rooms]
+      summary: Create a study room
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 80 }
+                description: { type: string, maxLength: 300 }
+                isPrivate:
+                  type: boolean
+                  description: If true, a joinCode is generated and returned in the response (creator only).
+      responses:
+        '201': { description: Created }
+
+  /rooms/lookup:
+    get:
+      tags: [Rooms]
+      summary: Resolve a join code to its room id — for "join with a code" without already having the link
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id: { type: string }
+                          name: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /rooms/{roomId}:
+    get:
+      tags: [Rooms]
+      summary: Get a room's details and current participants (with live study timers)
+      description: >
+        For a private room the caller hasn't joined, returns a locked
+        summary (`locked: true`, no participants) unless a valid `code` is
+        supplied — this is what powers the pre-join gate.
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - name: code
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/StudyRoom'
+                          - type: object
+                            properties:
+                              participants:
+                                type: array
+                                items: { $ref: '#/components/schemas/RoomParticipantView' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Rooms]
+      summary: Delete a room (creator only)
+      parameters: [{ $ref: '#/components/parameters/RoomId' }]
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /rooms/{roomId}/join:
+    post:
+      tags: [Rooms]
+      summary: Join a room (marks the caller present)
+      description: For a private room, `code` is required unless the caller is the creator or already a member.
+      parameters: [{ $ref: '#/components/parameters/RoomId' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, maxLength: 20 }
+                topic:
+                  type: string
+                  maxLength: 120
+                  description: "\"What are you studying?\" — shown next to the participant's avatar."
+      responses:
+        '200': { description: OK }
+        '403': { description: Invalid or missing join code for a private room }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /rooms/{roomId}/leave:
+    post:
+      tags: [Rooms]
+      summary: Leave a room — also ends any active study session tied to this room
+      parameters: [{ $ref: '#/components/parameters/RoomId' }]
+      responses:
+        '200': { description: OK }
+
+  /rooms/{roomId}/messages:
+    get:
+      tags: [Rooms]
+      summary: List a room's recent chat messages (last 50)
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - name: code
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/RoomMessage' } }
+        '403': { description: Private room — caller is not a member }
+    post:
+      tags: [Rooms]
+      summary: Send a chat message into a room
+      parameters: [{ $ref: '#/components/parameters/RoomId' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string, maxLength: 1000 }
+      responses:
+        '201': { description: Sent }
+        '403': { description: Private room — caller is not a member }
+
+  /study-sessions:
+    get:
+      tags: [Rooms]
+      summary: List the authenticated user's own study session history
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/StudySession' } }
+    post:
+      tags: [Rooms]
+      summary: Start a study session (the "Start Studying" button) — 409 if one is already active
+      description: >
+        `roomId` is optional — a session can stand alone, outside any room.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roomId: { type: string }
+      responses:
+        '201': { description: Started }
+        '409': { description: The caller already has an active study session }
+
+  /study-sessions/active:
+    get:
+      tags: [Rooms]
+      summary: Get the authenticated user's currently active study session, if any
+      responses:
+        '200': { description: OK }
+
+  /study-sessions/{sessionId}/end:
+    patch:
+      tags: [Rooms]
+      summary: End a study session — computes durationSeconds and records STUDY_SESSION_ENDED
+      parameters: [{ $ref: '#/components/parameters/SessionId' }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
 

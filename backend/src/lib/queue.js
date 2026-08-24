@@ -27,4 +27,30 @@ function enqueueIngestion({ documentId, storageKey, mimeType, vectorNamespace, d
   });
 }
 
-module.exports = { INGESTION_QUEUE, ingestionQueue, enqueueIngestion };
+const SESSION_SWEEP_QUEUE = 'session-sweep';
+const SESSION_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+
+const sessionSweepQueue = new Queue(SESSION_SWEEP_QUEUE, {
+  connection,
+  defaultJobOptions: { removeOnComplete: { count: 20 }, removeOnFail: { count: 20 } },
+});
+
+// Idempotent — call once on worker startup (see worker.js). BullMQ dedupes
+// repeatable jobs by their repeat config, so calling this again on every
+// restart doesn't stack up duplicate schedules.
+function scheduleSessionSweep() {
+  return sessionSweepQueue.add(
+    'sweep',
+    {},
+    { repeat: { every: SESSION_SWEEP_INTERVAL_MS }, jobId: 'session-sweep' }
+  );
+}
+
+module.exports = {
+  INGESTION_QUEUE,
+  ingestionQueue,
+  enqueueIngestion,
+  SESSION_SWEEP_QUEUE,
+  sessionSweepQueue,
+  scheduleSessionSweep,
+};

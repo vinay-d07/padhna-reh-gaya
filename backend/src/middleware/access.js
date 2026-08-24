@@ -92,4 +92,20 @@ function requireConversationRole(minRole) {
   };
 }
 
-module.exports = { requireWorkspaceRole, requireNoteRole, requireConversationRole };
+// For routes with no workspace/note/conversation to scope against (e.g. the
+// global study-rooms API) — just resolves req.clerkId to the app's User row
+// so controllers can read req.dbUser.id like every other module does.
+async function requireDbUser(req, res, next) {
+  try {
+    const user = await userRepo.findUserByClerkId(req.clerkId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    req.dbUser = user;
+    next();
+  } catch (error) {
+    return handleAccessError(res, error);
+  }
+}
+
+module.exports = { requireWorkspaceRole, requireNoteRole, requireConversationRole, requireDbUser };

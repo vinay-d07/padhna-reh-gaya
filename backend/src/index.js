@@ -1,3 +1,4 @@
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -10,6 +11,7 @@ require('./lib/sentry');
 const logger = require('./lib/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { mountDocs } = require('./lib/openapi');
+const { initSocket } = require('./lib/socket');
 
 const usersRoutes = require('./modules/users/routes');
 const workspacesRoutes = require('./modules/workspaces/routes');
@@ -18,6 +20,8 @@ const notesRoutes = require('./modules/notes/routes');
 const chatRoutes = require('./modules/chat/routes');
 const dashboardRoutes = require('./modules/dashboard/routes');
 const reviewRoutes = require('./modules/review/routes');
+const roomsRoutes = require('./modules/rooms/routes');
+const studySessionsRoutes = require('./modules/studySessions/routes');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -56,6 +60,8 @@ app.use('/workspaces/:workspaceId/conversations', chatRoutes.workspaceScoped);
 app.use('/conversations', chatRoutes.standalone);
 app.use('/workspaces/:workspaceId/review', reviewRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/rooms', roomsRoutes);
+app.use('/study-sessions', studySessionsRoutes);
 app.use('/workspaces', workspacesRoutes);
 
 app.get("/", (req, res) => {
@@ -65,6 +71,11 @@ app.get("/", (req, res) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+// Socket.io needs the raw http.Server (not just the Express app) to upgrade
+// connections on the same port the REST API listens on — see lib/socket.js.
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
     logger.info(`Server listening on port ${PORT}`);
 });

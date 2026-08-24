@@ -43,6 +43,10 @@ enum ActivityType {
   FLASHCARD_REVIEWED
   QUIZ_GENERATED
   QUIZ_COMPLETED
+  ROOM_JOINED
+  ROOM_LEFT
+  STUDY_SESSION_STARTED
+  STUDY_SESSION_ENDED
 }
 
 ///////////////////////////////////////////////////////////
@@ -82,6 +86,14 @@ model User {
   activities Activity[]
 
   flashcardProgress FlashcardProgress[]
+
+  createdRooms StudyRoom[] @relation("RoomCreator")
+
+  roomParticipations RoomParticipant[]
+
+  studySessions StudySession[]
+
+  roomMessages RoomMessage[]
 }
 
 ///////////////////////////////////////////////////////////
@@ -448,4 +460,120 @@ model Activity {
   @@index([type])
 
   @@index([createdAt])
+}
+
+///////////////////////////////////////////////////////////
+// STUDY ROOMS (global, cross-workspace co-working rooms)
+///////////////////////////////////////////////////////////
+
+model StudyRoom {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  name String
+
+  description String?
+
+  createdById String @db.ObjectId
+
+  createdBy User @relation("RoomCreator", fields: [createdById], references: [id])
+
+  isPrivate Boolean @default(false)
+
+  // Only set (and only ever returned to the creator / a member) when
+  // isPrivate — a short code required to join otherwise. Not globally
+  // unique: it's only ever checked against *this* room's code, so a
+  // collision with another room's code is meaningless.
+  joinCode String?
+
+  participants RoomParticipant[]
+
+  sessions StudySession[]
+
+  messages RoomMessage[]
+
+  createdAt DateTime @default(now())
+
+  deletedAt DateTime?
+
+  @@index([deletedAt])
+}
+
+model RoomParticipant {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  roomId String @db.ObjectId
+
+  room StudyRoom @relation(fields: [roomId], references: [id])
+
+  userId String @db.ObjectId
+
+  user User @relation(fields: [userId], references: [id])
+
+  joinedAt DateTime @default(now())
+
+  // null = currently present in the room
+  leftAt DateTime?
+
+  // "What are you studying?" — asked on entry, shown next to the avatar.
+  topic String?
+
+  @@unique([roomId,userId])
+
+  @@index([roomId,leftAt])
+}
+
+///////////////////////////////////////////////////////////
+// ROOM MESSAGE (simple group chat, scoped to a room)
+///////////////////////////////////////////////////////////
+
+model RoomMessage {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  roomId String @db.ObjectId
+
+  room StudyRoom @relation(fields: [roomId], references: [id])
+
+  userId String @db.ObjectId
+
+  user User @relation(fields: [userId], references: [id])
+
+  content String
+
+  createdAt DateTime @default(now())
+
+  @@index([roomId,createdAt])
+}
+
+///////////////////////////////////////////////////////////
+// STUDY SESSION (the "Start Studying" timer — roomId is optional so a
+// session can stand alone, outside any room)
+///////////////////////////////////////////////////////////
+
+model StudySession {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+
+  user User @relation(fields: [userId], references: [id])
+
+  roomId String? @db.ObjectId
+
+  room StudyRoom? @relation(fields: [roomId], references: [id])
+
+  startedAt DateTime @default(now())
+
+  // null = still active
+  endedAt DateTime?
+
+  durationSeconds Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId,endedAt])
+
+  @@index([roomId,endedAt])
 }
