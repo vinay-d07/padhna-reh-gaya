@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
-import { ArrowLeft, ArrowRight, Lock, Plus, Users } from "lucide-react";
+import { ArrowRight, Lock, Plus, Users } from "lucide-react";
 import Skeleton from "@/components/Skeleton";
+import TopNav from "@/components/TopNav";
 import CreateRoomModal from "./components/CreateRoomModal";
 import { listRooms, lookupRoomByCode } from "./rooms.services";
 
@@ -26,20 +26,9 @@ export default function RoomsLobby() {
 
   return (
     <div className="min-h-screen bg-warm-canvas">
-      <header className="mx-auto flex w-full max-w-[1000px] items-center justify-between px-6 py-8">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-body-sm text-slate transition-colors hover:text-carbon-black"
-        >
-          <ArrowLeft size={14} />
-          Dashboard
-        </Link>
-        <UserButton
-          appearance={{ elements: { userButtonAvatarBox: "h-9 w-9 rounded-lg border border-ash" } }}
-        />
-      </header>
+      <TopNav />
 
-      <main className="mx-auto flex w-full max-w-[1000px] flex-col gap-6 px-6 pb-20">
+      <main className="mx-auto flex w-full max-w-[1000px] flex-col gap-6 px-6 py-8 pb-20">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="font-display text-heading uppercase text-carbon-black sm:text-heading-lg">

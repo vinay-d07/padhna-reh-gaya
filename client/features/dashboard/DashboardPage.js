@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { UserButton, useAuth } from "@clerk/nextjs";
-import { Users } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
+import TopNav from "@/components/TopNav";
 import ActivityHeatmap from "./components/ActivityHeatmap";
 import StudyInsights from "./components/StudyInsights";
 import WorkspaceList from "./components/WorkspaceList";
@@ -49,37 +48,19 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-warm-canvas">
-      <header className="mx-auto flex w-full max-w-[1200px] items-center justify-between px-6 py-8">
-        <span className="font-display text-2xl uppercase tracking-wide text-carbon-black">
-          padhle
-        </span>
-        <div className="flex items-center gap-4">
-          <PersonalTimer />
-          <Link
-            href="/rooms"
-            className="inline-flex items-center gap-2 rounded-lg bg-carbon-black px-4 py-2.5 text-body-sm font-medium text-paper-white transition-opacity hover:opacity-80"
-          >
-            <Users size={15} />
-            Study rooms
-          </Link>
-          <UserButton
-            appearance={{
-              elements: {
-                userButtonAvatarBox: "h-9 w-9 rounded-lg border border-ash",
-              },
-            }}
-          />
-        </div>
-      </header>
+      <TopNav />
 
-      <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-10 px-6 pb-20">
-        <div>
-          <h1 className="font-display text-heading uppercase text-carbon-black sm:text-heading-lg">
-            Dashboard
-          </h1>
-          <p className="mt-2 text-subheading text-slate">
-            Pick up where you left off, or start a new workspace.
-          </p>
+      <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-10 px-6 py-8 pb-20">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-heading uppercase text-carbon-black sm:text-heading-lg">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-subheading text-slate">
+              Pick up where you left off, or start a new workspace.
+            </p>
+          </div>
+          <PersonalTimer />
         </div>
 
         {loading ? (

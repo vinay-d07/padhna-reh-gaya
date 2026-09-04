@@ -1,4 +1,4 @@
-import api from '@/lib/api';
+import api, { getAuthToken } from '@/lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -39,7 +39,7 @@ export const sendMessage = async (
   content,
   { onToken, onDone, onError } = {}
 ) => {
-  const token = await window.Clerk?.session?.getToken();
+  const token = await getAuthToken();
   const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: {

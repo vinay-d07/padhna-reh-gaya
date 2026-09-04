@@ -53,5 +53,6 @@ pnpm-debug.log*
 test-results/
 playwright-report/
 blob-report/
-
+impov.md
 features.md
+rooms.md

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, RotateCw, Check } from "lucide-react";
+import { RotateCw, Check } from "lucide-react";
 import Skeleton from "@/components/Skeleton";
 import { getReviewQueue, gradeFlashcard } from "./review.services";
 
@@ -54,16 +53,8 @@ export default function ReviewPage({ workspaceId }) {
   };
 
   return (
-    <div className="min-h-screen bg-warm-canvas p-4">
+    <div className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-xl flex-col gap-4">
-        <Link
-          href={`/workspace/${workspaceId}`}
-          className="inline-flex w-fit items-center gap-1.5 text-body-sm text-slate transition-colors hover:text-carbon-black"
-        >
-          <ArrowLeft size={14} />
-          Back to workspace
-        </Link>
-
         <div className="rounded-card bg-paper-white p-6">
           {loading ? (
             <div className="flex flex-col gap-3">
