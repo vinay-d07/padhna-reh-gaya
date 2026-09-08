@@ -150,6 +150,12 @@ async function listDocuments(workspaceId) {
   return await uploadsRepo.findDocumentsByWorkspaceId(workspaceId);
 }
 
+// Soft-delete only — the storage object and vector collection are left in
+// place (same as workspace/note soft-delete) so a short undo window on the
+// client can call restoreDocument and get back a fully working document,
+// not just a DB record with nothing behind it. Permanent cleanup of
+// storage/vectors for documents that are never restored is a separate,
+// deferred concern (see features.md).
 async function deleteDocument(workspaceId, documentId) {
   if (!documentId) {
     throw new Error('document id is required');
@@ -160,16 +166,23 @@ async function deleteDocument(workspaceId, documentId) {
     throw new Error('Document not found');
   }
 
-  await supabase.storage.from(DOCUMENTS_BUCKET).remove([document.storageKey]);
+  return await uploadsRepo.softDeleteDocument(documentId);
+}
 
-  try {
-    const { deleteDocumentVectors } = await loadRag();
-    await deleteDocumentVectors(document.vectorNamespace);
-  } catch (error) {
-    console.error(`Failed to delete vectors for document ${documentId}:`, error);
+async function restoreDocument(workspaceId, documentId) {
+  if (!documentId) {
+    throw new Error('document id is required');
   }
 
-  return await uploadsRepo.softDeleteDocument(documentId);
+  const document = await uploadsRepo.findDocumentByIdIncludingDeleted(documentId);
+  if (!document || document.workspaceId !== workspaceId) {
+    throw new Error('Document not found');
+  }
+  if (!document.deletedAt) {
+    return document;
+  }
+
+  return await uploadsRepo.restoreDocument(documentId);
 }
 
 async function assertDocumentReady(workspaceId, documentId) {
@@ -324,6 +337,7 @@ module.exports = {
   uploadDocument,
   listDocuments,
   deleteDocument,
+  restoreDocument,
   retryIngestion,
   generateSummary,
   getSummary,

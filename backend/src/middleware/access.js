@@ -51,10 +51,15 @@ function requireWorkspaceRole(minRole, { paramName = 'workspaceId' } = {}) {
 
 // Same as requireWorkspaceRole but for /notes/:noteId routes, which don't
 // carry workspaceId in the URL — resolves it via the note first.
-function requireNoteRole(minRole) {
+// `includeDeleted` is for the restore route: the note being restored is by
+// definition soft-deleted, so the normal (non-deleted-only) lookup would
+// 404 before the handler ever runs.
+function requireNoteRole(minRole, { includeDeleted = false } = {}) {
   return async function (req, res, next) {
     try {
-      const note = await notesRepo.findNoteById(req.params.noteId);
+      const note = includeDeleted
+        ? await notesRepo.findNoteByIdIncludingDeleted(req.params.noteId)
+        : await notesRepo.findNoteById(req.params.noteId);
       if (!note) {
         return res.status(404).json({ success: false, message: 'Note not found' });
       }

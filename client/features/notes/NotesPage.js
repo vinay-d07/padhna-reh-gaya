@@ -5,12 +5,14 @@ import { useAuth } from "@clerk/nextjs";
 import { Plus, StickyNote, Trash2 } from "lucide-react";
 import Skeleton from "@/components/Skeleton";
 import NoteEditor from "./components/NoteEditor";
-import { getNotes, createNote, updateNote, deleteNote } from "./notes.services";
+import { getNotes, createNote, updateNote, deleteNote, restoreNote } from "./notes.services";
 import { useWorkspaceContext } from "@/features/workspace/WorkspaceContext";
+import { useToast } from "@/providers/ToastProvider";
 
 export default function NotesPage() {
   const { userId } = useAuth();
   const { workspaceId } = useWorkspaceContext();
+  const { showUndoToast } = useToast();
   const [notes, setNotes] = useState(null);
   const [activeNoteId, setActiveNoteId] = useState(null);
   const saveTimeout = useRef(null);
@@ -45,9 +47,15 @@ export default function NotesPage() {
   };
 
   const handleDelete = (noteId) => {
+    const deletedNote = notes?.find((n) => n.id === noteId);
     setNotes((prev) => prev.filter((n) => n.id !== noteId));
     if (activeNoteId === noteId) setActiveNoteId(null);
     deleteNote(noteId).catch(() => {});
+
+    showUndoToast(`"${deletedNote?.title || "Untitled note"}" deleted.`, async () => {
+      const restored = await restoreNote(noteId);
+      setNotes((prev) => [restored, ...(prev ?? [])]);
+    });
   };
 
   const scheduleSave = (noteId, patch) => {

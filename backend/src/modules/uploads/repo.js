@@ -24,6 +24,21 @@ async function softDeleteDocument(id) {
   });
 }
 
+// Deliberately does NOT filter out soft-deleted documents — used to look one
+// up specifically in order to restore it.
+async function findDocumentByIdIncludingDeleted(id) {
+  return await prisma.document.findUnique({ where: { id } });
+}
+
+async function restoreDocument(id) {
+  // `unset` (not `deletedAt: null`) so the field goes back to being absent —
+  // matching the `isSet: false` filter every list/find query uses.
+  return await prisma.document.update({
+    where: { id },
+    data: { deletedAt: { unset: true } },
+  });
+}
+
 async function updateDocumentStatus(id, data) {
   return await prisma.document.update({
     where: { id },
@@ -79,6 +94,8 @@ module.exports = {
   findDocumentsByWorkspaceId,
   findDocumentById,
   softDeleteDocument,
+  findDocumentByIdIncludingDeleted,
+  restoreDocument,
   updateDocumentStatus,
   findSummaryByDocumentId,
   upsertSummary,

@@ -26,5 +26,11 @@ standalone.patch(
   notesController.update
 );
 standalone.delete('/:noteId', requireAuth, requireNoteRole('EDITOR'), notesController.remove);
+standalone.post(
+  '/:noteId/restore',
+  requireAuth,
+  requireNoteRole('EDITOR', { includeDeleted: true }),
+  notesController.restore
+);
 
 module.exports = { workspaceScoped, standalone };

@@ -1,0 +1,47 @@
+How Spaced Repetition Works
+
+Introduction
+
+Spaced repetition is a learning technique built around a simple observation: memories fade over time, but each time you successfully recall something, the memory becomes more durable and the rate of forgetting slows down. Instead of reviewing material once and hoping it sticks, spaced repetition schedules reviews at increasing intervals — a few minutes, then a day, then a week, then a month — timed to land just before you would otherwise forget. This document explains the psychology behind the technique, the SM-2 algorithm that many flashcard tools (including this one) use to schedule reviews, and practical tips for getting the most out of it.
+
+The Forgetting Curve
+
+In the 1880s, the psychologist Hermann Ebbinghaus ran a series of memory experiments on himself, memorizing lists of nonsense syllables and testing how much he could still recall after various delays. He found that forgetting follows a predictable curve: retention drops sharply in the first hours after learning, then levels off. Without any review, most newly learned information is largely gone within a few days.
+
+Ebbinghaus also discovered that the curve is not fixed. Every time you review material and successfully retrieve it from memory, the curve flattens — the next review can be pushed further into the future before forgetting sets back in. This is the core insight spaced repetition systems are built on: reviewing right before you would forget strengthens the memory more efficiently than reviewing on a fixed daily schedule, and far more efficiently than cramming everything the night before a test.
+
+Why Spacing Beats Cramming
+
+Cramming produces a short, misleading spike in performance. Because the material is still sitting in short-term memory, a student who crams can often recall it perfectly during a study session or even the next morning. But that recall is fragile — the forgetting curve for crammed material is steep, and most of it is gone within a week. Researchers call this the "spacing effect": for a fixed amount of total study time, spreading reviews out over days and weeks produces dramatically better long-term retention than massing all the reviews together.
+
+The reason has to do with retrieval difficulty. When you review something you just saw five minutes ago, your brain barely has to work to retrieve it — the memory trace is still active. When you review something you saw three days ago, retrieval is harder, and that extra effort is exactly what signals to the brain that the memory is worth reinforcing. Reviews that feel slightly effortful — but still successful — build stronger, longer-lasting memories than reviews that feel trivially easy.
+
+The SM-2 Algorithm
+
+SM-2 (SuperMemo 2) is one of the earliest and most widely adopted spaced repetition algorithms, developed by Piotr Wozniak in the late 1980s. It schedules each flashcard independently based on how well you remember it, using three numbers per card:
+
+1. Ease factor: a multiplier, starting around 2.5, that represents how "easy" a card is for you. Cards you consistently get right have their ease factor increase slightly; cards you struggle with have it decrease.
+
+2. Interval: the number of days until the next review. After the first successful review the interval might be one day, after the second successful review a few days, and it grows by roughly the ease factor each time after that.
+
+3. Repetitions: a running count of how many times in a row you've recalled the card successfully. Getting a card wrong resets this counter to zero and shrinks the interval back down, so a forgotten card gets reviewed again soon rather than being pushed months into the future.
+
+After each review, you grade your own recall — typically on a scale like "Again," "Hard," "Good," or "Easy." That grade feeds back into the three numbers above: an "Easy" grade increases the ease factor and stretches the next interval further out, while an "Again" grade resets the card's progress and schedules it for review again almost immediately. Over many reviews, cards you know well drift toward longer and longer intervals — weeks, then months — while cards you find difficult keep circling back more frequently, so your study time concentrates on exactly the material you haven't yet mastered.
+
+Active Recall
+
+Spaced repetition is most effective when paired with active recall — testing yourself by producing an answer from memory, rather than passively re-reading notes or highlighting a textbook. Passive review feels productive because the material feels familiar, but familiarity is a poor predictor of whether you could actually reproduce the information on a test with no prompts in front of you. Flashcards are a natural fit for active recall: the question forces retrieval, and only after you've committed to an answer do you check whether you were right.
+
+This is also why well-written flashcards matter. A good flashcard asks a specific, unambiguous question with a single clear answer — "What does the ease factor in SM-2 control?" rather than "Tell me about SM-2." Vague cards invite vague, unverifiable answers, which defeats the purpose of testing recall in the first place.
+
+Practical Tips
+
+Keep cards atomic. A flashcard that tries to test three facts at once is harder to grade honestly — you might know two out of three and not be sure whether that counts as a pass. Splitting it into three focused cards gives the algorithm cleaner signal about what you actually know.
+
+Review a little every day rather than a lot occasionally. Because SM-2 schedules cards individually, a consistent daily habit — even five or ten minutes — keeps the due-card queue small and manageable. Skipping several days lets due cards pile up, which makes the next session feel like a chore and defeats the "little and often" design of the system.
+
+Grade yourself honestly. It's tempting to mark a card "Good" when you sort of remembered it, but inflated grades push the next review further out than your actual memory supports, and the card will likely be wrong — and due for an "Again" reset — the next time it appears anyway. Honest grading, even when it feels discouraging in the moment, produces a more accurate and ultimately more efficient schedule.
+
+Summary
+
+Spaced repetition works by aligning review timing with the natural shape of the forgetting curve: review too early and you waste time on something you'd have remembered anyway; review too late and the memory has already faded, forcing you to relearn it almost from scratch. Algorithms like SM-2 automate that timing on a per-card basis, using your own self-graded recall to decide whether to push a card further into the future or bring it back around soon. Combined with active recall — testing yourself rather than re-reading — spaced repetition is one of the most well-evidenced techniques in the science of learning, which is why it sits at the center of this app's flashcard review system.

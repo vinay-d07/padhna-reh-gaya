@@ -1,15 +1,20 @@
 const prisma = require('../../lib/prisma');
 
-async function upsertUser(data) {
-  return await prisma.user.upsert({
-    where: { clerkId: data.clerkId },
-    update: {
+async function createUser(data) {
+  return await prisma.user.create({
+    data: {
+      clerkId: data.clerkId,
       email: data.email,
       name: data.name,
       imageUrl: data.imageUrl,
     },
-    create: {
-      clerkId: data.clerkId,
+  });
+}
+
+async function updateUser(clerkId, data) {
+  return await prisma.user.update({
+    where: { clerkId },
+    data: {
       email: data.email,
       name: data.name,
       imageUrl: data.imageUrl,
@@ -36,7 +41,8 @@ async function deleteUserByClerkId(clerkId) {
 }
 
 module.exports = {
-  upsertUser,
+  createUser,
+  updateUser,
   findUserByClerkId,
   findUserById,
   deleteUserByClerkId,

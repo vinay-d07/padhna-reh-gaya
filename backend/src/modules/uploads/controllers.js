@@ -63,6 +63,16 @@ const remove = asyncHandler(async (req, res) => {
   });
 });
 
+const restore = asyncHandler(async (req, res) => {
+  const { workspaceId, documentId } = req.params;
+  const document = await uploadService.restoreDocument(workspaceId, documentId);
+  return res.status(200).json({
+    success: true,
+    message: 'Document restored successfully',
+    data: document,
+  });
+});
+
 const retryIngestion = asyncHandler(async (req, res) => {
   const { workspaceId, documentId } = req.params;
   const document = await uploadService.retryIngestion(workspaceId, documentId);
@@ -167,6 +177,7 @@ module.exports = {
   create,
   list,
   remove,
+  restore,
   retryIngestion,
   generateSummary,
   getSummary,

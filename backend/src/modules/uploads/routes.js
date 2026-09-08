@@ -21,6 +21,12 @@ router.post(
 );
 router.delete('/:documentId', requireAuth, requireWorkspaceRole('EDITOR'), uploadsController.remove);
 router.post(
+  '/:documentId/restore',
+  requireAuth,
+  requireWorkspaceRole('EDITOR'),
+  uploadsController.restore
+);
+router.post(
   '/:documentId/retry',
   requireAuth,
   requireWorkspaceRole('EDITOR'),

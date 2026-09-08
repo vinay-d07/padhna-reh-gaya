@@ -3,20 +3,33 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { FileText, Plus, Trash2, AlertCircle, Loader2 } from "lucide-react";
+import { FileText, Plus, Trash2, AlertCircle, RotateCw } from "lucide-react";
 import Skeleton from "@/components/Skeleton";
 import UploadModal from "@/features/uploads/components/UploadModal";
-import { uploadDocument, deleteDocument } from "@/features/uploads/uploads.services";
+import IngestProgress from "./components/IngestProgress";
+import {
+  uploadDocument,
+  deleteDocument,
+  restoreDocument,
+  retryDocument,
+} from "@/features/uploads/uploads.services";
 import { getWorkspaceDocuments } from "@/features/workspace/workspace.services";
 import { useWorkspaceContext } from "@/features/workspace/WorkspaceContext";
+import { useToast } from "@/providers/ToastProvider";
+import { friendlyIngestionError } from "@/lib/ingestionError";
 
 let localDocId = 0;
+
+const PENDING_STATUSES = new Set(["UPLOADING", "PROCESSING"]);
 
 export default function DocumentsLibraryPage() {
   const { userId } = useAuth();
   const { workspaceId } = useWorkspaceContext();
+  const { showUndoToast } = useToast();
   const [documents, setDocuments] = useState(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [retrying, setRetrying] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -28,6 +41,30 @@ export default function DocumentsLibraryPage() {
     };
   }, [workspaceId]);
 
+  // While anything is still processing, poll for status/ingestProgress so the
+  // progress bar actually moves instead of sitting on a spinner forever.
+  useEffect(() => {
+    const hasPending = documents?.some(
+      (d) => PENDING_STATUSES.has(d.status) && !String(d.id).startsWith("local-")
+    );
+    if (!hasPending) return;
+
+    const interval = setInterval(() => {
+      getWorkspaceDocuments(workspaceId)
+        .then((fresh) => {
+          if (!fresh) return;
+          setDocuments((prev) => {
+            if (!prev) return prev;
+            const byId = new Map(fresh.map((d) => [d.id, d]));
+            return prev.map((d) => byId.get(d.id) ?? d);
+          });
+        })
+        .catch(() => {});
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [workspaceId, documents]);
+
   const handleUpload = (files) => {
     if (!userId) return;
 
@@ -38,22 +75,56 @@ export default function DocumentsLibraryPage() {
         ...(prev ?? []),
       ]);
 
-      uploadDocument(workspaceId, file)
+      uploadDocument(workspaceId, file, {
+        onProgress: (pct) => setUploadProgress((prev) => ({ ...prev, [localId]: pct })),
+      })
         .then((document) => {
           setDocuments((prev) => prev.map((doc) => (doc.id === localId ? document : doc)));
+          setUploadProgress((prev) => {
+            const { [localId]: _, ...rest } = prev;
+            return rest;
+          });
         })
-        .catch(() => {
+        .catch((error) => {
           setDocuments((prev) =>
-            prev.map((doc) => (doc.id === localId ? { ...doc, status: "FAILED" } : doc))
+            prev.map((doc) =>
+              doc.id === localId
+                ? {
+                    ...doc,
+                    status: "FAILED",
+                    errorMessage: error.response?.data?.message || "Upload failed.",
+                  }
+                : doc
+            )
           );
         });
     });
   };
 
   const handleDelete = (doc) => {
-    if (!window.confirm(`Delete "${doc.title || doc.fileName}"? This can't be undone.`)) return;
+    const label = doc.title || doc.fileName;
     setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
     deleteDocument(workspaceId, doc.id).catch(() => {});
+
+    showUndoToast(`"${label}" deleted.`, async () => {
+      const restored = await restoreDocument(workspaceId, doc.id);
+      setDocuments((prev) => [restored, ...(prev ?? [])]);
+    });
+  };
+
+  const handleRetry = async (doc) => {
+    setRetrying((prev) => ({ ...prev, [doc.id]: true }));
+    try {
+      const updated = await retryDocument(workspaceId, doc.id);
+      setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, ...updated } : d)));
+    } catch {
+      // leave the card in its FAILED state; the retry button is still there
+    } finally {
+      setRetrying((prev) => {
+        const { [doc.id]: _, ...rest } = prev;
+        return rest;
+      });
+    }
   };
 
   if (documents === null) {
@@ -103,6 +174,9 @@ export default function DocumentsLibraryPage() {
                 doc={doc}
                 workspaceId={workspaceId}
                 onDelete={() => handleDelete(doc)}
+                onRetry={() => handleRetry(doc)}
+                retrying={!!retrying[doc.id]}
+                uploadPercent={uploadProgress[doc.id]}
               />
             ))}
           </div>
@@ -114,9 +188,9 @@ export default function DocumentsLibraryPage() {
   );
 }
 
-function DocumentCard({ doc, workspaceId, onDelete }) {
+function DocumentCard({ doc, workspaceId, onDelete, onRetry, retrying, uploadPercent }) {
   const label = doc.title || doc.fileName;
-  const isUploading = doc.status === "UPLOADING" || doc.status === "PROCESSING";
+  const isPending = doc.status === "UPLOADING" || doc.status === "PROCESSING";
   const isFailed = doc.status === "FAILED";
   const isLocal = typeof doc.id === "string" && doc.id.startsWith("local-");
 
@@ -144,29 +218,40 @@ function DocumentCard({ doc, workspaceId, onDelete }) {
         )}
       </div>
       <p className="line-clamp-2 text-body-sm font-medium text-carbon-black">{label}</p>
-      <div className="mt-auto flex items-center gap-1.5 font-mono text-caption uppercase">
-        {isUploading && (
-          <span className="inline-flex items-center gap-1 text-smoke">
-            <Loader2 size={11} className="animate-spin" />
-            {doc.status === "UPLOADING" ? "Uploading…" : "Processing…"}
-          </span>
-        )}
-        {isFailed && (
-          <span className="inline-flex items-center gap-1 text-red-600">
-            <AlertCircle size={11} />
-            Failed
-          </span>
-        )}
-        {doc.status === "READY" && (
-          <span className="text-smoke">
-            {doc.pageCount ? `${doc.pageCount} pages` : "Ready"}
-          </span>
-        )}
-      </div>
+
+      {isPending && (
+        <IngestProgress status={doc.status} progress={doc.ingestProgress} uploadPercent={uploadPercent} />
+      )}
+
+      {isFailed && (
+        <div className="flex flex-col gap-2">
+          <p className="inline-flex items-start gap-1.5 text-caption text-red-600">
+            <AlertCircle size={12} className="mt-0.5 shrink-0" />
+            {friendlyIngestionError(doc.errorMessage)}
+          </p>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onRetry();
+            }}
+            disabled={retrying}
+            className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-caption font-medium text-paper-white transition-opacity hover:opacity-80 disabled:opacity-40"
+          >
+            <RotateCw size={11} className={retrying ? "animate-spin" : ""} />
+            {retrying ? "Retrying…" : "Retry"}
+          </button>
+        </div>
+      )}
+
+      {doc.status === "READY" && (
+        <span className="mt-auto font-mono text-caption uppercase text-smoke">
+          {doc.pageCount ? `${doc.pageCount} pages` : "Ready"}
+        </span>
+      )}
     </>
   );
 
-  if (isLocal || isUploading) {
+  if (isLocal || isPending || isFailed) {
     return (
       <div className="group flex flex-col gap-3 rounded-card bg-paper-white p-5">{content}</div>
     );

@@ -3,7 +3,7 @@ const asyncHandler = require('../../lib/asyncHandler');
 
 const signup = asyncHandler(async (req, res) => {
   const { email, name, imageUrl } = req.body;
-  const user = await userService.signupOrSyncUser({
+  const { user, isNewUser } = await userService.signupOrSyncUser({
     clerkId: req.clerkId,
     email,
     name,
@@ -13,6 +13,7 @@ const signup = asyncHandler(async (req, res) => {
     success: true,
     message: 'User synced successfully',
     data: user,
+    isNewUser,
   });
 });
 

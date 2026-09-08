@@ -93,6 +93,9 @@ export async function streamAnswer({ question, collectionNames, chatHistory = []
     page: doc.metadata?.page,
     title: doc.metadata?.title,
     score,
+    // The exact chunk the answer was grounded in — lets the UI show "see for
+    // yourself" citations instead of asking the user to just trust the answer.
+    snippet: doc.pageContent?.slice(0, 600),
   }));
 
   return { answer, sources };

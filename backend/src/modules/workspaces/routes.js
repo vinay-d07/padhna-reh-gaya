@@ -26,5 +26,11 @@ router.delete(
   requireWorkspaceRole('OWNER', { paramName: 'id' }),
   workspaceController.remove
 );
+router.post(
+  '/:id/restore',
+  requireAuth,
+  requireWorkspaceRole('OWNER', { paramName: 'id' }),
+  workspaceController.restore
+);
 
 module.exports = router;

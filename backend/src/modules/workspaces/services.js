@@ -90,10 +90,27 @@ async function deleteWorkspace(id) {
   return await workspaceRepo.softDeleteWorkspace(id);
 }
 
+async function restoreWorkspace(id) {
+  if (!id) {
+    throw new Error('workspace id is required');
+  }
+
+  const existing = await workspaceRepo.findWorkspaceByIdIncludingDeleted(id);
+  if (!existing) {
+    throw new Error('Workspace not found');
+  }
+  if (!existing.deletedAt) {
+    return existing;
+  }
+
+  return await workspaceRepo.restoreWorkspace(id);
+}
+
 module.exports = {
   createWorkspace,
   listWorkspaces,
   getWorkspace,
   updateWorkspace,
   deleteWorkspace,
+  restoreWorkspace,
 };

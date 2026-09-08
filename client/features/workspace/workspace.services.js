@@ -29,6 +29,16 @@ export const deleteWorkspace = async (workspaceId) => {
   }
 };
 
+export const restoreWorkspace = async (workspaceId) => {
+  try {
+    const response = await api.post(`/workspaces/${workspaceId}/restore`);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error restoring workspace:', error);
+    throw error;
+  }
+};
+
 export const getWorkspaceDocuments = async (workspaceId) => {
   try {
     const response = await api.get(`/workspaces/${workspaceId}/documents`);

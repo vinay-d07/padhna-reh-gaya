@@ -11,6 +11,8 @@ const ACCEPTED_MIME_TYPES = new Set([
   "text/plain",
 ]);
 
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -20,11 +22,26 @@ function formatSize(bytes) {
 export default function UploadModal({ open, onClose, onUpload }) {
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
+  const [rejections, setRejections] = useState([]);
   const inputRef = useRef(null);
 
   const addFiles = (fileList) => {
-    const validFiles = Array.from(fileList).filter((f) => ACCEPTED_MIME_TYPES.has(f.type));
-    setFiles((prev) => [...prev, ...validFiles]);
+    const incoming = Array.from(fileList);
+    const accepted = [];
+    const rejected = [];
+
+    for (const file of incoming) {
+      if (!ACCEPTED_MIME_TYPES.has(file.type)) {
+        rejected.push(`${file.name} — unsupported file type`);
+      } else if (file.size > MAX_FILE_SIZE) {
+        rejected.push(`${file.name} — exceeds the 25MB limit`);
+      } else {
+        accepted.push(file);
+      }
+    }
+
+    setFiles((prev) => [...prev, ...accepted]);
+    setRejections(rejected);
   };
 
   const handleDrop = (e) => {
@@ -39,6 +56,7 @@ export default function UploadModal({ open, onClose, onUpload }) {
 
   const handleClose = () => {
     setFiles([]);
+    setRejections([]);
     onClose();
   };
 
@@ -46,6 +64,7 @@ export default function UploadModal({ open, onClose, onUpload }) {
     if (files.length === 0) return;
     onUpload?.(files);
     setFiles([]);
+    setRejections([]);
     onClose();
   };
 
@@ -67,6 +86,7 @@ export default function UploadModal({ open, onClose, onUpload }) {
         <p className="text-body-sm text-carbon-black">
           Drop PDF, DOCX, PPTX, or TXT files here, or click to browse
         </p>
+        <p className="font-mono text-caption uppercase text-smoke">Up to 25MB per file · multiple files OK</p>
         <input
           ref={inputRef}
           type="file"
@@ -76,6 +96,16 @@ export default function UploadModal({ open, onClose, onUpload }) {
           className="hidden"
         />
       </div>
+
+      {rejections.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-1">
+          {rejections.map((message) => (
+            <li key={message} className="text-caption text-red-600">
+              {message}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {files.length > 0 && (
         <ul className="mt-4 flex flex-col gap-2">

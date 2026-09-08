@@ -18,8 +18,14 @@ export default function UserSync({ children }) {
           // Prevent multiple requests in the same browser session tab
           const syncFlag = sessionStorage.getItem(`synced_${user.id}`);
           if (!syncFlag) {
-            await syncUserWithBackend({ email, name, imageUrl });
+            const response = await syncUserWithBackend({ email, name, imageUrl });
             sessionStorage.setItem(`synced_${user.id}`, 'true');
+            // Persisted (not sessionStorage) so the onboarding walkthrough
+            // still shows up if the user closes the tab before finishing it —
+            // the dashboard clears this flag once the walkthrough is shown.
+            if (response?.isNewUser) {
+              localStorage.setItem(`padhle:onboarding-pending:${user.id}`, '1');
+            }
           }
         } catch (error) {
           console.error('Failed to sync user with backend:', error);

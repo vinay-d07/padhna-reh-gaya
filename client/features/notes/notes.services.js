@@ -44,3 +44,13 @@ export const deleteNote = async (noteId) => {
     throw error;
   }
 };
+
+export const restoreNote = async (noteId) => {
+  try {
+    const response = await api.post(`/notes/${noteId}/restore`);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error restoring note:', error);
+    throw error;
+  }
+};

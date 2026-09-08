@@ -98,9 +98,26 @@ async function deleteNote(id) {
   return await notesRepo.softDeleteNote(id);
 }
 
+async function restoreNote(id) {
+  if (!id) {
+    throw new Error('note id is required');
+  }
+
+  const existing = await notesRepo.findNoteByIdIncludingDeleted(id);
+  if (!existing) {
+    throw new Error('Note not found');
+  }
+  if (!existing.deletedAt) {
+    return existing;
+  }
+
+  return await notesRepo.restoreNote(id);
+}
+
 module.exports = {
   createNote,
   listNotes,
   updateNote,
   deleteNote,
+  restoreNote,
 };

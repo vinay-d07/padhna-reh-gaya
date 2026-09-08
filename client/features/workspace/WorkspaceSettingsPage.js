@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
-import { updateWorkspace, deleteWorkspace } from "./workspace.services";
+import { updateWorkspace, deleteWorkspace, restoreWorkspace } from "./workspace.services";
 import { useWorkspaceContext } from "./WorkspaceContext";
+import { useToast } from "@/providers/ToastProvider";
 
 export default function WorkspaceSettingsPage() {
   const router = useRouter();
+  const { showUndoToast } = useToast();
   const { workspaceId, workspace, setWorkspace } = useWorkspaceContext();
   // null = untouched — falls back to the loaded workspace name; a string once
   // the user starts typing, reset to null again after a successful save.
@@ -53,6 +55,10 @@ export default function WorkspaceSettingsPage() {
     try {
       await deleteWorkspace(workspaceId);
       router.push("/dashboard");
+      showUndoToast(`"${displayName}" deleted.`, async () => {
+        await restoreWorkspace(workspaceId);
+        router.push(`/workspace/${workspaceId}`);
+      });
     } catch {
       setDeleting(false);
     }

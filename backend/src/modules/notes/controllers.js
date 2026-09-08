@@ -40,9 +40,20 @@ const remove = asyncHandler(async (req, res) => {
   });
 });
 
+const restore = asyncHandler(async (req, res) => {
+  const { noteId } = req.params;
+  const note = await noteService.restoreNote(noteId);
+  return res.status(200).json({
+    success: true,
+    message: 'Note restored successfully',
+    data: note,
+  });
+});
+
 module.exports = {
   create,
   list,
   update,
   remove,
+  restore,
 };

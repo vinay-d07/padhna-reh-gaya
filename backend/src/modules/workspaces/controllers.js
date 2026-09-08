@@ -54,10 +54,21 @@ const remove = asyncHandler(async (req, res) => {
   });
 });
 
+const restore = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const workspace = await workspaceService.restoreWorkspace(id);
+  return res.status(200).json({
+    success: true,
+    message: 'Workspace restored successfully',
+    data: workspace,
+  });
+});
+
 module.exports = {
   create,
   list,
   getOne,
   update,
   remove,
+  restore,
 };

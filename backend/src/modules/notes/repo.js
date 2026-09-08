@@ -31,10 +31,27 @@ async function softDeleteNote(id) {
   });
 }
 
+// Deliberately does NOT filter out soft-deleted notes — used to look one up
+// specifically in order to restore it.
+async function findNoteByIdIncludingDeleted(id) {
+  return await prisma.note.findUnique({ where: { id } });
+}
+
+async function restoreNote(id) {
+  // `unset` (not `deletedAt: null`) so the field goes back to being absent —
+  // matching the `isSet: false` filter every list/find query uses.
+  return await prisma.note.update({
+    where: { id },
+    data: { deletedAt: { unset: true } },
+  });
+}
+
 module.exports = {
   createNote,
   findNotesByWorkspaceId,
   findNoteById,
   updateNote,
   softDeleteNote,
+  findNoteByIdIncludingDeleted,
+  restoreNote,
 };

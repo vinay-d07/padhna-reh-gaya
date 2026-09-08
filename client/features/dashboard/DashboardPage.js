@@ -9,6 +9,7 @@ import WorkspaceList from "./components/WorkspaceList";
 import CreateWorkspaceModal from "./components/CreateWorkspaceModal";
 import PersonalTimer from "./components/PersonalTimer";
 import Skeleton from "@/components/Skeleton";
+import OnboardingWalkthrough from "@/features/onboarding/OnboardingWalkthrough";
 import { getWorkspaces, getStudyInsights, getActivity } from "./dash.services";
 
 export default function DashboardPage() {
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoaded || !userId) return;
@@ -38,6 +40,12 @@ export default function DashboardPage() {
       if (results[2].status === "fulfilled") setActivity(results[2].value ?? []);
 
       setLoading(false);
+
+      const pendingKey = `padhle:onboarding-pending:${userId}`;
+      if (localStorage.getItem(pendingKey)) {
+        localStorage.removeItem(pendingKey);
+        setOnboardingOpen(true);
+      }
     }
 
     load();
@@ -45,6 +53,8 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [isLoaded, userId]);
+
+  const sampleWorkspace = workspaces.find((w) => w.name === "Try Padhle");
 
   return (
     <div className="min-h-screen bg-warm-canvas">
@@ -81,6 +91,11 @@ export default function DashboardPage() {
       </main>
 
       <CreateWorkspaceModal open={createModalOpen} onClose={() => setCreateModalOpen(false)} />
+      <OnboardingWalkthrough
+        open={onboardingOpen}
+        onClose={() => setOnboardingOpen(false)}
+        sampleWorkspaceId={sampleWorkspace?.id}
+      />
     </div>
   );
 }

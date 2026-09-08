@@ -7,6 +7,7 @@
   },
   "scripts": {
     "setup": "node scripts/setup.js",
+    "dev": "node scripts/dev.js",
     "healthcheck": "node scripts/healthcheck.js",
     "e2e": "playwright test"
   },

@@ -1,10 +1,22 @@
 const userRepo = require('./repo');
+const { seedSampleWorkspaceInBackground } = require('./sampleWorkspace');
 
 async function signupOrSyncUser(userData) {
   if (!userData.clerkId || !userData.email) {
     throw new Error('clerkId and email are required for signup/sync');
   }
-  return await userRepo.upsertUser(userData);
+
+  const existing = await userRepo.findUserByClerkId(userData.clerkId);
+  if (existing) {
+    const user = await userRepo.updateUser(userData.clerkId, userData);
+    return { user, isNewUser: false };
+  }
+
+  const user = await userRepo.createUser(userData);
+  // Non-blocking — signup shouldn't wait on document ingestion, and a
+  // failure here shouldn't fail the signup response itself.
+  seedSampleWorkspaceInBackground(user);
+  return { user, isNewUser: true };
 }
 
 async function getUserByClerkId(clerkId) {

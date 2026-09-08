@@ -55,10 +55,28 @@ async function softDeleteWorkspace(id) {
   });
 }
 
+// Unlike findWorkspaceById, this deliberately does NOT filter out
+// soft-deleted workspaces — it's used to look a workspace up specifically in
+// order to restore it.
+async function findWorkspaceByIdIncludingDeleted(id) {
+  return await prisma.workspace.findUnique({ where: { id } });
+}
+
+async function restoreWorkspace(id) {
+  // `unset` (not `deletedAt: null`) so the field goes back to being absent —
+  // matching the `isSet: false` filter every list/find query uses.
+  return await prisma.workspace.update({
+    where: { id },
+    data: { deletedAt: { unset: true } },
+  });
+}
+
 module.exports = {
   createWorkspace,
   findWorkspacesByOwnerId,
   findWorkspaceById,
   updateWorkspace,
   softDeleteWorkspace,
+  findWorkspaceByIdIncludingDeleted,
+  restoreWorkspace,
 };
