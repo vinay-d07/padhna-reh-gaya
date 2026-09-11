@@ -9,7 +9,7 @@ import { useToast } from "@/providers/ToastProvider";
 
 export default function WorkspaceSettingsPage() {
   const router = useRouter();
-  const { showUndoToast } = useToast();
+  const { showUndoToast, showToast } = useToast();
   const { workspaceId, workspace, setWorkspace } = useWorkspaceContext();
   // null = untouched — falls back to the loaded workspace name; a string once
   // the user starts typing, reset to null again after a successful save.
@@ -37,13 +37,22 @@ export default function WorkspaceSettingsPage() {
     e.preventDefault();
     if (!canRename) return;
     const trimmed = name.trim();
+    const previousName = displayName;
     setSaving(true);
+    // Optimistic: the name updates immediately (the sidebar/nav reflect it
+    // right away) and rolls back if the request turns out to have failed.
+    setWorkspace((prev) => (prev ? { ...prev, name: trimmed } : prev));
+    setDraftName(null);
     try {
       await updateWorkspace(workspaceId, { name: trimmed });
-      setWorkspace((prev) => (prev ? { ...prev, name: trimmed } : prev));
-      setDraftName(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setWorkspace((prev) => (prev ? { ...prev, name: previousName } : prev));
+      showToast({
+        message: err.response?.data?.message || "Couldn't rename the workspace. Try again.",
+        tone: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -59,7 +68,11 @@ export default function WorkspaceSettingsPage() {
         await restoreWorkspace(workspaceId);
         router.push(`/workspace/${workspaceId}`);
       });
-    } catch {
+    } catch (err) {
+      showToast({
+        message: err.response?.data?.message || "Couldn't delete the workspace. Try again.",
+        tone: "error",
+      });
       setDeleting(false);
     }
   };

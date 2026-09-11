@@ -16,8 +16,16 @@ import {
   endStudySession,
   getRoomMessages,
   sendRoomMessage,
+  reactToRoomMessage,
 } from "./rooms.services";
 import { connectSocket, disconnectSocket, getSocket } from "./socket";
+import { useToast } from "@/providers/ToastProvider";
+
+function formatStudyDuration(seconds) {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 1) return "under a minute";
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
 
 function initials(name) {
   if (!name) return "?";
@@ -30,6 +38,7 @@ function initials(name) {
 }
 
 export default function RoomPage({ roomId }) {
+  const { showToast } = useToast();
   // Set when arriving from the lobby's "have a code?" lookup (see
   // RoomsLobby.js JoinByCode) — carried through so the gate below doesn't
   // ask for the code a second time.
@@ -114,6 +123,9 @@ export default function RoomPage({ roomId }) {
       socket.on("chat:message", (message) => {
         setMessages((prev) => [...prev, message]);
       });
+      socket.on("chat:reaction", ({ messageId, reactions }) => {
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
+      });
       // On every (re)connect — not just the first — re-join the room's
       // Socket.io channel and re-sync the full participant list. Socket.io
       // does not remember room membership across a reconnect (a new
@@ -182,7 +194,9 @@ export default function RoomPage({ roomId }) {
     try {
       await startStudySession(roomId);
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't start a session.");
+      const message = err.response?.data?.message || "Couldn't start a session.";
+      setError(message);
+      showToast({ message, tone: "error" });
     } finally {
       setBusy(false);
     }
@@ -192,9 +206,12 @@ export default function RoomPage({ roomId }) {
     setBusy(true);
     setError(null);
     try {
-      await endStudySession(sessionId);
+      const ended = await endStudySession(sessionId);
+      showToast({ message: `You studied for ${formatStudyDuration(ended.durationSeconds)} — nice work.` });
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't end the session.");
+      const message = err.response?.data?.message || "Couldn't end the session.";
+      setError(message);
+      showToast({ message, tone: "error" });
     } finally {
       setBusy(false);
     }
@@ -202,6 +219,14 @@ export default function RoomPage({ roomId }) {
 
   const handleSend = async (content) => {
     await sendRoomMessage(roomId, content);
+  };
+
+  const handleReact = async (messageId, emoji) => {
+    try {
+      await reactToRoomMessage(roomId, messageId, emoji);
+    } catch {
+      showToast({ message: "Couldn't add that reaction. Try again.", tone: "error" });
+    }
   };
 
   if (phase === "notfound") {
@@ -275,7 +300,12 @@ export default function RoomPage({ roomId }) {
               </div>
             </div>
 
-            <RoomChat messages={messages} onSend={handleSend} myUserId={myUserId} />
+            <RoomChat
+              messages={messages}
+              onSend={handleSend}
+              onReact={handleReact}
+              myUserId={myUserId}
+            />
 
             <div className="rounded-card bg-paper-white p-6">
               <p className="mb-3 font-mono text-caption uppercase text-smoke">Activity</p>

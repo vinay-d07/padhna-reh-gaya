@@ -92,6 +92,25 @@ async function findRecentMessages(roomId, limit) {
   return messages.reverse();
 }
 
+async function findMessageById(id) {
+  return await prisma.roomMessage.findUnique({ where: { id } });
+}
+
+async function setMessageReactions(id, reactions) {
+  return await prisma.roomMessage.update({ where: { id }, data: { reactions } });
+}
+
+// A handful of avatars per lobby card, not the full room — see
+// rooms/services.js listRooms.
+async function findRecentParticipantsPreview(roomId, limit) {
+  return await prisma.roomParticipant.findMany({
+    where: { roomId, leftAt: null },
+    include: { user: { select: { id: true, name: true, imageUrl: true } } },
+    orderBy: { joinedAt: 'asc' },
+    take: limit,
+  });
+}
+
 module.exports = {
   createRoom,
   findPublicRooms,
@@ -106,4 +125,7 @@ module.exports = {
   findStaleParticipants,
   createMessage,
   findRecentMessages,
+  findMessageById,
+  setMessageReactions,
+  findRecentParticipantsPreview,
 };

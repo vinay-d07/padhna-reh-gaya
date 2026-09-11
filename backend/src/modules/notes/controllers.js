@@ -3,8 +3,14 @@ const asyncHandler = require('../../lib/asyncHandler');
 
 const create = asyncHandler(async (req, res) => {
   const { workspaceId } = req.params;
-  const { title, content } = req.body;
-  const note = await noteService.createNote({ workspaceId, clerkId: req.clerkId, title, content });
+  const { title, content, conversationId } = req.body;
+  const note = await noteService.createNote({
+    workspaceId,
+    clerkId: req.clerkId,
+    title,
+    content,
+    conversationId,
+  });
   return res.status(201).json({
     success: true,
     message: 'Note created successfully',
@@ -50,10 +56,20 @@ const restore = asyncHandler(async (req, res) => {
   });
 });
 
+const countByConversation = asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
+  const count = await noteService.countNotesByConversationId(conversationId);
+  return res.status(200).json({
+    success: true,
+    data: { count },
+  });
+});
+
 module.exports = {
   create,
   list,
   update,
   remove,
   restore,
+  countByConversation,
 };

@@ -73,4 +73,11 @@ const listMessages = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true, data: messages });
 });
 
-module.exports = { list, create, lookupByCode, getOne, remove, join, leave, sendMessage, listMessages };
+const react = asyncHandler(async (req, res) => {
+  const { roomId, messageId } = req.params;
+  const { emoji } = req.body;
+  const result = await roomsService.reactToMessage({ roomId, messageId, userId: req.dbUser.id, emoji });
+  return res.status(200).json({ success: true, data: result });
+});
+
+module.exports = { list, create, lookupByCode, getOne, remove, join, leave, sendMessage, listMessages, react };

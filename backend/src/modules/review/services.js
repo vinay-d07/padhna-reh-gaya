@@ -18,7 +18,9 @@ function toCardView(flashcard, progress) {
     isNew: !progress,
     easeFactor: progress?.easeFactor ?? INITIAL_EASE_FACTOR,
     repetitions: progress?.repetitions ?? 0,
+    intervalDays: progress?.intervalDays ?? 0,
     dueDate: progress?.dueDate ?? null,
+    lastReviewedAt: progress?.lastReviewedAt ?? null,
   };
 }
 

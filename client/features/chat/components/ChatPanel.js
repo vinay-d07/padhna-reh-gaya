@@ -1,9 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send, Sparkles, Search, Copy, RotateCw, ThumbsUp, ThumbsDown, Check } from "lucide-react";
+import Link from "next/link";
+import {
+  Send,
+  Sparkles,
+  Search,
+  Copy,
+  RotateCw,
+  ThumbsUp,
+  ThumbsDown,
+  Check,
+  StickyNote,
+} from "lucide-react";
 import { createConversation, getMessages, sendMessage } from "@/features/chat/chat.services";
 import { getWorkspaceDocuments } from "@/features/workspace/workspace.services";
+import { createNote, getNotesCountForConversation } from "@/features/notes/notes.services";
 import Markdown from "@/features/chat/components/Markdown";
 import Skeleton from "@/components/Skeleton";
 import { useToast } from "@/providers/ToastProvider";
@@ -54,6 +66,7 @@ export default function ChatPanel({
   const [isRetrieving, setIsRetrieving] = useState(false);
   const [streamingId, setStreamingId] = useState(null);
   const [documents, setDocuments] = useState([]);
+  const [notesCount, setNotesCount] = useState(0);
   const scrollRef = useRef(null);
   // Tracks which conversationId the current `messages` state belongs to, so
   // that when handleSend creates a conversation locally and the id is handed
@@ -71,6 +84,22 @@ export default function ChatPanel({
       .then((docs) => setDocuments(docs ?? []))
       .catch(() => {});
   }, [workspaceId]);
+
+  // Surfaces the notes<->chat link from the chat side — see NotesPage's
+  // "from this chat" chip for the other direction.
+  useEffect(() => {
+    if (!conversationId) {
+      setNotesCount(0);
+      return;
+    }
+    let cancelled = false;
+    getNotesCountForConversation(conversationId)
+      .then((count) => !cancelled && setNotesCount(count))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
 
   useEffect(() => {
     if (conversationId === loadedRef.current) return;
@@ -219,6 +248,24 @@ export default function ChatPanel({
     }
   };
 
+  const handleSaveNote = async (assistantId) => {
+    if (!conversationId) return;
+    const index = messages.findIndex((m) => m.id === assistantId);
+    const answer = messages[index];
+    const priorUser = [...messages.slice(0, index)].reverse().find((m) => m.role === "user");
+    try {
+      await createNote(workspaceId, {
+        title: priorUser?.content?.slice(0, 80) || "Note from chat",
+        content: `<p>${answer.content}</p>`,
+        conversationId,
+      });
+      setNotesCount((n) => n + 1);
+      showToast({ message: "Saved to notes.", duration: 2500 });
+    } catch {
+      showToast({ message: "Couldn't save that as a note. Try again.", tone: "error" });
+    }
+  };
+
   return (
     <div className="flex h-full flex-col rounded-card bg-paper-white">
       <div className="flex items-center gap-2 border-b border-ash px-5 py-4">
@@ -226,6 +273,16 @@ export default function ChatPanel({
         <h3 className="font-sans text-body-sm font-medium uppercase text-carbon-black">
           Chat {workspaceName ? `· ${workspaceName}` : ""}
         </h3>
+        {notesCount > 0 && (
+          <Link
+            href={`/workspace/${workspaceId}/notes`}
+            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-ash px-2.5 py-1 text-caption text-slate transition-colors hover:border-carbon-black hover:text-carbon-black"
+            title="Notes saved from this chat"
+          >
+            <StickyNote size={12} />
+            {notesCount} note{notesCount === 1 ? "" : "s"} from this chat
+          </Link>
+        )}
       </div>
 
       <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
@@ -262,6 +319,7 @@ export default function ChatPanel({
                 isStreaming={streamingId === message.id}
                 onCopy={() => handleCopy(message.content)}
                 onRegenerate={() => handleRegenerate(message.id)}
+                onSaveNote={conversationId ? () => handleSaveNote(message.id) : undefined}
               />
             ))}
 
@@ -297,17 +355,23 @@ export default function ChatPanel({
   );
 }
 
-function ChatBubble({ message, isStreaming, onCopy, onRegenerate }) {
+function ChatBubble({ message, isStreaming, onCopy, onRegenerate, onSaveNote }) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [expandedSource, setExpandedSource] = useState(null);
+  const [saved, setSaved] = useState(false);
   const { showToast } = useToast();
 
   const handleCopyClick = () => {
     onCopy();
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleSaveNoteClick = async () => {
+    await onSaveNote();
+    setSaved(true);
   };
 
   const handleFeedback = (value) => {
@@ -352,6 +416,19 @@ function ChatBubble({ message, isStreaming, onCopy, onRegenerate }) {
           >
             <RotateCw size={13} />
           </button>
+          {onSaveNote && (
+            <button
+              onClick={handleSaveNoteClick}
+              disabled={saved}
+              aria-label="Save as note"
+              title="Save as note"
+              className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-mist-gray ${
+                saved ? "text-emerald-600" : "text-slate hover:text-carbon-black"
+              }`}
+            >
+              {saved ? <Check size={13} /> : <StickyNote size={13} />}
+            </button>
+          )}
           <button
             onClick={() => handleFeedback("up")}
             aria-label="Helpful"

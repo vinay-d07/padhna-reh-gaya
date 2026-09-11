@@ -1,6 +1,7 @@
 const notesRepo = require('./repo');
 const workspaceRepo = require('../workspaces/repo');
 const userRepo = require('../users/repo');
+const chatRepo = require('../chat/repo');
 
 // content is stored as Json but is currently always an HTML string from the
 // Tiptap editor; plainText/wordCount are derived from it for display/search.
@@ -11,7 +12,7 @@ function deriveTextStats(content) {
   return { plainText, wordCount };
 }
 
-async function createNote({ workspaceId, clerkId, title, content }) {
+async function createNote({ workspaceId, clerkId, title, content, conversationId }) {
   if (!workspaceId) {
     throw new Error('workspaceId is required');
   }
@@ -29,12 +30,25 @@ async function createNote({ workspaceId, clerkId, title, content }) {
     throw new Error('User not found');
   }
 
+  // Don't trust a caller-supplied conversationId outright — silently drop it
+  // if it doesn't resolve to a conversation in this same workspace, rather
+  // than either erroring the whole note creation or letting a note link to
+  // a conversation the user can't access.
+  let linkedConversationId;
+  if (conversationId) {
+    const conversation = await chatRepo.findConversationById(conversationId);
+    if (conversation && conversation.workspaceId === workspaceId) {
+      linkedConversationId = conversation.id;
+    }
+  }
+
   const noteContent = content ?? '';
   const { plainText, wordCount } = deriveTextStats(noteContent);
 
   return await notesRepo.createNote({
     workspaceId,
     userId: user.id,
+    conversationId: linkedConversationId,
     title: title?.trim() || 'Untitled note',
     content: noteContent,
     plainText,
@@ -114,10 +128,18 @@ async function restoreNote(id) {
   return await notesRepo.restoreNote(id);
 }
 
+async function countNotesByConversationId(conversationId) {
+  if (!conversationId) {
+    throw new Error('conversationId is required');
+  }
+  return await notesRepo.countNotesByConversationId(conversationId);
+}
+
 module.exports = {
   createNote,
   listNotes,
   updateNote,
   deleteNote,
   restoreNote,
+  countNotesByConversationId,
 };

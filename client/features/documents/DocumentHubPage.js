@@ -142,7 +142,13 @@ export default function DocumentHubPage({ documentId }) {
           <>
             {tab === "summary" && <SummaryView workspaceId={workspaceId} documentId={documentId} />}
             {tab === "flashcards" && <FlashcardsView workspaceId={workspaceId} documentId={documentId} />}
-            {tab === "quiz" && <QuizView workspaceId={workspaceId} documentId={documentId} />}
+            {tab === "quiz" && (
+              <QuizView
+                workspaceId={workspaceId}
+                documentId={documentId}
+                onReviewMissed={() => setTab("flashcards")}
+              />
+            )}
           </>
         )}
       </div>

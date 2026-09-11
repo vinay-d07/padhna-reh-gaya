@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { Send, SmilePlus } from "lucide-react";
 
 function formatTime(date) {
   return new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function RoomChat({ messages, onSend, myUserId }) {
+// Kept to a small fixed set — a full emoji picker is more chrome than a
+// "keep going" reaction in a study room chat needs.
+const QUICK_REACTIONS = ["🔥", "👏", "💪", "😂", "❤️"];
+
+export default function RoomChat({ messages, onSend, onReact, myUserId }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
@@ -39,15 +43,7 @@ export default function RoomChat({ messages, onSend, myUserId }) {
         ) : (
           <ul className="flex flex-col gap-2.5">
             {messages.map((m) => (
-              <li key={m.id}>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-body-sm font-medium text-carbon-black">
-                    {m.userId === myUserId ? "You" : m.name || "Someone"}
-                  </span>
-                  <span className="font-mono text-[11px] text-smoke">{formatTime(m.createdAt)}</span>
-                </div>
-                <p className="text-body-sm text-slate">{m.content}</p>
-              </li>
+              <RoomMessageItem key={m.id} message={m} myUserId={myUserId} onReact={onReact} />
             ))}
           </ul>
         )}
@@ -71,5 +67,70 @@ export default function RoomChat({ messages, onSend, myUserId }) {
         </button>
       </form>
     </div>
+  );
+}
+
+function RoomMessageItem({ message, myUserId, onReact }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const reactions = message.reactions || {};
+  const reactionEntries = Object.entries(reactions).filter(([, userIds]) => userIds?.length);
+
+  return (
+    <li className="group relative">
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-body-sm font-medium text-carbon-black">
+          {message.userId === myUserId ? "You" : message.name || "Someone"}
+        </span>
+        <span className="font-mono text-[11px] text-smoke">{formatTime(message.createdAt)}</span>
+        {onReact && (
+          <div className="relative ml-auto">
+            <button
+              onClick={() => setPickerOpen((v) => !v)}
+              aria-label="Add reaction"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-smoke opacity-0 transition-opacity hover:bg-mist-gray hover:text-carbon-black group-hover:opacity-100"
+            >
+              <SmilePlus size={13} />
+            </button>
+            {pickerOpen && (
+              <div className="absolute right-0 top-full z-10 mt-1 flex items-center gap-1 rounded-lg border border-ash bg-paper-white p-1.5 shadow-lg">
+                {QUICK_REACTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => {
+                      onReact(message.id, emoji);
+                      setPickerOpen(false);
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-body-sm transition-colors hover:bg-mist-gray"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <p className="text-body-sm text-slate">{message.content}</p>
+      {reactionEntries.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {reactionEntries.map(([emoji, userIds]) => {
+            const reactedByMe = userIds.includes(myUserId);
+            return (
+              <button
+                key={emoji}
+                onClick={() => onReact?.(message.id, emoji)}
+                className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-caption transition-colors ${
+                  reactedByMe
+                    ? "border-carbon-black bg-mist-gray text-carbon-black"
+                    : "border-ash text-slate hover:border-carbon-black hover:text-carbon-black"
+                }`}
+              >
+                {emoji} {userIds.length}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </li>
   );
 }

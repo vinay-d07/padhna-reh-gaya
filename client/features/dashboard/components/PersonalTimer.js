@@ -8,6 +8,13 @@ import {
   startStudySession,
   endStudySession,
 } from "@/features/rooms/rooms.services";
+import { useToast } from "@/providers/ToastProvider";
+
+function formatStudyDuration(seconds) {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 1) return "under a minute";
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
 
 // A standalone "Start Studying" timer for the dashboard navbar — for
 // solo studying with no room involved. It's the exact same StudySession
@@ -16,6 +23,7 @@ import {
 // here without stopping it — there's only ever one active session per
 // user regardless of where it was started.
 export default function PersonalTimer() {
+  const { showToast } = useToast();
   const [session, setSession] = useState(null);
   const [now, setNow] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -49,7 +57,9 @@ export default function PersonalTimer() {
       const newSession = await startStudySession();
       setSession(newSession);
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't start.");
+      const message = err.response?.data?.message || "Couldn't start.";
+      setError(message);
+      showToast({ message, tone: "error" });
     } finally {
       setBusy(false);
     }
@@ -60,10 +70,13 @@ export default function PersonalTimer() {
     setBusy(true);
     setError(null);
     try {
-      await endStudySession(session.id);
+      const ended = await endStudySession(session.id);
       setSession(null);
+      showToast({ message: `You studied for ${formatStudyDuration(ended.durationSeconds)} — nice work.` });
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't stop.");
+      const message = err.response?.data?.message || "Couldn't stop.";
+      setError(message);
+      showToast({ message, tone: "error" });
     } finally {
       setBusy(false);
     }

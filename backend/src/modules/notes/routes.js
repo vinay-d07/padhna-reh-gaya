@@ -1,7 +1,7 @@
 const express = require('express');
 const notesController = require('./controllers');
 const { requireAuth } = require('../../middleware/auth');
-const { requireWorkspaceRole, requireNoteRole } = require('../../middleware/access');
+const { requireWorkspaceRole, requireNoteRole, requireConversationRole } = require('../../middleware/access');
 const { validateBody } = require('../../middleware/validate');
 const { createNoteSchema, updateNoteSchema } = require('./validation');
 
@@ -31,6 +31,15 @@ standalone.post(
   requireAuth,
   requireNoteRole('EDITOR', { includeDeleted: true }),
   notesController.restore
+);
+// Must be mounted before nothing conflicting — "conversations" here is a
+// literal path segment, not a :noteId, so it never collides with the routes
+// above.
+standalone.get(
+  '/conversations/:conversationId/count',
+  requireAuth,
+  requireConversationRole('VIEWER'),
+  notesController.countByConversation
 );
 
 module.exports = { workspaceScoped, standalone };

@@ -5,9 +5,11 @@ import Link from "next/link";
 import { RefreshCw, ChevronLeft, ChevronRight, RotateCw, GraduationCap } from "lucide-react";
 import { getFlashcards, generateFlashcards } from "../documents.services";
 import { NoDocumentSelected, GenerateEmptyState, PanelSkeleton } from "./PanelStates";
+import { useToast } from "@/providers/ToastProvider";
 
 // flashcards: null = loading, undefined = fetched but none exist, array = loaded.
 export default function FlashcardsView({ workspaceId, documentId }) {
+  const { showToast } = useToast();
   const [flashcards, setFlashcards] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -31,8 +33,11 @@ export default function FlashcardsView({ workspaceId, documentId }) {
       setFlashcards(data);
       setCardIndex(0);
       setFlipped(false);
+      showToast({ message: `${data.length} flashcards generated.`, duration: 3000 });
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't generate flashcards. Try again.");
+      const message = err.response?.data?.message || "Couldn't generate flashcards. Try again.";
+      setError(message);
+      showToast({ message, tone: "error" });
     } finally {
       setGenerating(false);
     }

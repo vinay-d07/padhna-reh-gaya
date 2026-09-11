@@ -46,6 +46,12 @@ async function restoreNote(id) {
   });
 }
 
+async function countNotesByConversationId(conversationId) {
+  return await prisma.note.count({
+    where: { conversationId, deletedAt: { isSet: false } },
+  });
+}
+
 module.exports = {
   createNote,
   findNotesByWorkspaceId,
@@ -54,4 +60,5 @@ module.exports = {
   softDeleteNote,
   findNoteByIdIncludingDeleted,
   restoreNote,
+  countNotesByConversationId,
 };

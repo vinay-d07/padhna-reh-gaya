@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { RefreshCw, ChevronLeft, ChevronRight, Check, X, Layers } from "lucide-react";
 import { getQuiz, generateQuiz, submitQuizAttempt } from "../documents.services";
 import { NoDocumentSelected, GenerateEmptyState, PanelSkeleton } from "./PanelStates";
+import { useToast } from "@/providers/ToastProvider";
 
 // quiz: null = loading, undefined = fetched but none exist, object = loaded.
-export default function QuizView({ workspaceId, documentId }) {
+export default function QuizView({ workspaceId, documentId, onReviewMissed }) {
+  const { showToast } = useToast();
   const [quiz, setQuiz] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -40,8 +42,11 @@ export default function QuizView({ workspaceId, documentId }) {
     try {
       const data = await generateQuiz(workspaceId, documentId, 5);
       resetForQuiz(data);
+      showToast({ message: `Quiz with ${data.questions.length} questions generated.`, duration: 3000 });
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't generate a quiz. Try again.");
+      const message = err.response?.data?.message || "Couldn't generate a quiz. Try again.";
+      setError(message);
+      showToast({ message, tone: "error" });
     } finally {
       setGenerating(false);
     }
@@ -67,7 +72,9 @@ export default function QuizView({ workspaceId, documentId }) {
       const data = await submitQuizAttempt(workspaceId, documentId, answers);
       setResult(data);
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't submit the quiz. Try again.");
+      const message = err.response?.data?.message || "Couldn't submit the quiz. Try again.";
+      setError(message);
+      showToast({ message, tone: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -105,6 +112,7 @@ export default function QuizView({ workspaceId, documentId }) {
         result={result}
         onRetake={handleRetake}
         onRegenerate={handleGenerate}
+        onReviewMissed={onReviewMissed}
         generating={generating}
       />
     );
@@ -186,7 +194,9 @@ export default function QuizView({ workspaceId, documentId }) {
   );
 }
 
-function QuizResults({ result, onRetake, onRegenerate, generating }) {
+function QuizResults({ result, onRetake, onRegenerate, onReviewMissed, generating }) {
+  const missedCount = result.total - result.score;
+
   return (
     <div className="animate-fade-in flex flex-col gap-4 px-5 py-4">
       <div className="flex flex-col items-center gap-1 rounded-card-lg bg-mist-gray px-6 py-8 text-center">
@@ -196,6 +206,16 @@ function QuizResults({ result, onRetake, onRegenerate, generating }) {
           <span className="text-body font-normal text-smoke"> / {result.total}</span>
         </p>
       </div>
+
+      {missedCount > 0 && onReviewMissed && (
+        <button
+          onClick={onReviewMissed}
+          className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-mint-chip/40 px-3 py-2 text-caption font-medium text-carbon-black transition-opacity hover:opacity-80"
+        >
+          <Layers size={13} />
+          Review the flashcards for what you missed
+        </button>
+      )}
 
       <ul className="flex flex-col gap-3">
         {result.results.map((r, i) => (

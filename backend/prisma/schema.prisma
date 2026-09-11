@@ -542,6 +542,11 @@ model RoomMessage {
 
   content String
 
+  // Emoji reactions, e.g. { "🔥": ["userId1", "userId2"], "👏": ["userId3"] }.
+  // Kept as a loose Json map (rather than a separate model) since it's small,
+  // never queried by content, and always read/written whole.
+  reactions Json?
+
   createdAt DateTime @default(now())
 
   @@index([roomId,createdAt])

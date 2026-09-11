@@ -12,18 +12,24 @@ export const getNotes = async (workspaceId) => {
 
 export const createNote = async (
   workspaceId,
-  { title = 'Untitled note', content = '' } = {}
+  { title = 'Untitled note', content = '', conversationId } = {}
 ) => {
   try {
     const response = await api.post(`/workspaces/${workspaceId}/notes`, {
       title,
       content,
+      conversationId,
     });
     return response.data.data;
   } catch (error) {
     console.error('Error creating note:', error);
     throw error;
   }
+};
+
+export const getNotesCountForConversation = async (conversationId) => {
+  const response = await api.get(`/notes/conversations/${conversationId}/count`);
+  return response.data.data.count;
 };
 
 export const updateNote = async (noteId, { title, content }) => {

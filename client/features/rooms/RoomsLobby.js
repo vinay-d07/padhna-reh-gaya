@@ -134,7 +134,20 @@ function JoinByCode() {
   );
 }
 
+function initials(name) {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 function RoomCard({ room }) {
+  const preview = room.participantsPreview ?? [];
+  const overflow = Math.max(0, room.participantCount - preview.length);
+
   return (
     <Link
       href={`/rooms/${room.id}`}
@@ -150,10 +163,43 @@ function RoomCard({ room }) {
         )}
       </div>
       {room.description && <p className="text-body-sm text-slate">{room.description}</p>}
-      <div className="mt-auto inline-flex items-center gap-1.5 text-caption font-mono uppercase text-smoke">
-        <Users size={13} />
-        {room.participantCount} {room.participantCount === 1 ? "person" : "people"} studying
-      </div>
+
+      {preview.length > 0 ? (
+        <div className="mt-auto flex items-center gap-2">
+          <div className="flex -space-x-2">
+            {preview.map((p) =>
+              p.imageUrl ? (
+                <img
+                  key={p.userId}
+                  src={p.imageUrl}
+                  alt={p.name || "Studying"}
+                  className="h-7 w-7 rounded-full border-2 border-paper-white object-cover"
+                />
+              ) : (
+                <div
+                  key={p.userId}
+                  className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-paper-white bg-mist-gray font-mono text-[10px] text-carbon-black"
+                >
+                  {initials(p.name)}
+                </div>
+              )
+            )}
+            {overflow > 0 && (
+              <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-paper-white bg-carbon-black font-mono text-[10px] text-paper-white">
+                +{overflow}
+              </div>
+            )}
+          </div>
+          <span className="text-caption font-mono uppercase text-smoke">
+            {room.participantCount} studying now
+          </span>
+        </div>
+      ) : (
+        <div className="mt-auto inline-flex items-center gap-1.5 text-caption font-mono uppercase text-smoke">
+          <Users size={13} />
+          Nobody here yet — be the first
+        </div>
+      )}
     </Link>
   );
 }

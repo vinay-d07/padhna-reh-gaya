@@ -15,4 +15,8 @@ const sendMessageSchema = z.object({
   content: z.string().trim().min(1, 'content is required').max(1000),
 });
 
-module.exports = { createRoomSchema, joinRoomSchema, sendMessageSchema };
+const reactionSchema = z.object({
+  emoji: z.string().trim().min(1, 'emoji is required').max(8),
+});
+
+module.exports = { createRoomSchema, joinRoomSchema, sendMessageSchema, reactionSchema };

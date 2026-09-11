@@ -3,7 +3,7 @@ const roomsController = require('./controllers');
 const { requireAuth } = require('../../middleware/auth');
 const { requireDbUser } = require('../../middleware/access');
 const { validateBody } = require('../../middleware/validate');
-const { createRoomSchema, joinRoomSchema, sendMessageSchema } = require('./validation');
+const { createRoomSchema, joinRoomSchema, sendMessageSchema, reactionSchema } = require('./validation');
 
 router.get('/', requireAuth, requireDbUser, roomsController.list);
 router.post('/', requireAuth, requireDbUser, validateBody(createRoomSchema), roomsController.create);
@@ -26,6 +26,13 @@ router.post(
   requireDbUser,
   validateBody(sendMessageSchema),
   roomsController.sendMessage
+);
+router.post(
+  '/:roomId/messages/:messageId/reactions',
+  requireAuth,
+  requireDbUser,
+  validateBody(reactionSchema),
+  roomsController.react
 );
 
 module.exports = router;

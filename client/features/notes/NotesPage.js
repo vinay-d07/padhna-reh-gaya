@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { Plus, StickyNote, Trash2 } from "lucide-react";
+import { Plus, StickyNote, Trash2, MessageSquare } from "lucide-react";
 import Skeleton from "@/components/Skeleton";
 import NoteEditor from "./components/NoteEditor";
 import { getNotes, createNote, updateNote, deleteNote, restoreNote } from "./notes.services";
@@ -160,8 +161,18 @@ export default function NotesPage() {
               value={activeNote.title}
               onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="Untitled note"
-              className="mb-3 border-none bg-transparent font-sans text-heading-sm font-medium text-carbon-black outline-none placeholder:text-smoke"
+              className="border-none bg-transparent font-sans text-heading-sm font-medium text-carbon-black outline-none placeholder:text-smoke"
             />
+            {activeNote.conversationId && (
+              <Link
+                href={`/workspace/${workspaceId}/chat/${activeNote.conversationId}`}
+                className="mb-3 mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-ash px-2.5 py-1 text-caption text-slate transition-colors hover:border-carbon-black hover:text-carbon-black"
+              >
+                <MessageSquare size={12} />
+                From this chat
+              </Link>
+            )}
+            {!activeNote.conversationId && <div className="mb-3" />}
             <NoteEditor note={activeNote} onChange={handleContentChange} />
           </div>
         )}

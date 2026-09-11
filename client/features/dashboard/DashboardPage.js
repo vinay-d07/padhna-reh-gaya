@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
+import { GraduationCap, Flame, ArrowRight } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import ActivityHeatmap from "./components/ActivityHeatmap";
 import StudyInsights from "./components/StudyInsights";
@@ -78,6 +80,7 @@ export default function DashboardPage() {
         ) : (
           <div className="animate-fade-in grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
             <section className="flex flex-col gap-4">
+              <StudyPrompt insights={insights} workspaces={workspaces} />
               <StudyInsights insights={insights} workspaces={workspaces} />
               <ActivityHeatmap data={activity} />
             </section>
@@ -98,6 +101,57 @@ export default function DashboardPage() {
       />
     </div>
   );
+}
+
+// The "should I study today?" answer, ahead of the log-shaped insights grid
+// and heatmap below it — leads with the one number that actually matters
+// right now (due cards, or a streak worth protecting) instead of making the
+// user scan tiles to figure that out themselves.
+function StudyPrompt({ insights, workspaces }) {
+  const dueFlashcards = insights?.dueFlashcards ?? 0;
+  const currentStreak = insights?.currentStreak ?? 0;
+  const targetWorkspace =
+    workspaces.find((w) => (w._count?.documents ?? 0) > 0) ?? workspaces[0];
+
+  if (dueFlashcards > 0 && targetWorkspace) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-card bg-carbon-black px-6 py-5 text-paper-white">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint-chip text-carbon-black">
+            <GraduationCap size={18} />
+          </span>
+          <div>
+            <p className="font-display text-heading-sm">
+              You have {dueFlashcards} card{dueFlashcards === 1 ? "" : "s"} due
+            </p>
+            <p className="text-body-sm text-paper-white/70">A few minutes now keeps it from piling up.</p>
+          </div>
+        </div>
+        <Link
+          href={`/workspace/${targetWorkspace.id}/review`}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-mint-chip px-4 py-2.5 text-body-sm font-medium text-carbon-black transition-opacity hover:opacity-80"
+        >
+          Review now
+          <ArrowRight size={14} />
+        </Link>
+      </div>
+    );
+  }
+
+  if (currentStreak > 0) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-card bg-mint-chip/40 px-6 py-5 text-carbon-black">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-carbon-black text-mint-chip">
+          <Flame size={18} />
+        </span>
+        <p className="font-display text-heading-sm">
+          {currentStreak}-day streak — don&rsquo;t break it. Chat, review, or upload something today.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function DashboardSkeleton() {

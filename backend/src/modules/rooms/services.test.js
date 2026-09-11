@@ -30,12 +30,13 @@ describe('listRooms', () => {
   it('attaches a live participant count to each room', async () => {
     vi.spyOn(roomsRepo, 'findPublicRooms').mockResolvedValue([ROOM, { id: 'room_3', name: 'Late night' }]);
     vi.spyOn(roomsRepo, 'countActiveParticipants').mockResolvedValueOnce(3).mockResolvedValueOnce(0);
+    vi.spyOn(roomsRepo, 'findRecentParticipantsPreview').mockResolvedValue([]);
 
     const rooms = await listRooms();
 
     expect(rooms).toEqual([
-      { ...ROOM, participantCount: 3 },
-      { id: 'room_3', name: 'Late night', participantCount: 0 },
+      { ...ROOM, participantCount: 3, participantsPreview: [] },
+      { id: 'room_3', name: 'Late night', participantCount: 0, participantsPreview: [] },
     ]);
   });
 });

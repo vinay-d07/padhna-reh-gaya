@@ -45,6 +45,11 @@ export const sendRoomMessage = async (roomId, content) => {
   return response.data.data;
 };
 
+export const reactToRoomMessage = async (roomId, messageId, emoji) => {
+  const response = await api.post(`/rooms/${roomId}/messages/${messageId}/reactions`, { emoji });
+  return response.data.data;
+};
+
 export const startStudySession = async (roomId) => {
   const response = await api.post('/study-sessions', roomId ? { roomId } : {});
   return response.data.data;

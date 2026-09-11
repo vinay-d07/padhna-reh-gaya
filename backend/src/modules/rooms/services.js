@@ -11,6 +11,9 @@ const dashboardService = require('../dashboard/services');
 
 const MESSAGE_HISTORY_LIMIT = 50;
 const MAX_CODE_GENERATION_ATTEMPTS = 5;
+// How many avatars a lobby card shows before falling back to "+N more" —
+// see rooms/services.js listRooms.
+const LOBBY_PARTICIPANT_PREVIEW_LIMIT = 4;
 
 function randomCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
@@ -49,8 +52,20 @@ async function assertCanAccess(room, userId, code) {
 
 async function listRooms() {
   const rooms = await roomsRepo.findPublicRooms();
-  const counts = await Promise.all(rooms.map((room) => roomsRepo.countActiveParticipants(room.id)));
-  return rooms.map((room, i) => ({ ...room, participantCount: counts[i] }));
+  const [counts, previews] = await Promise.all([
+    Promise.all(rooms.map((room) => roomsRepo.countActiveParticipants(room.id))),
+    Promise.all(
+      rooms.map((room) => roomsRepo.findRecentParticipantsPreview(room.id, LOBBY_PARTICIPANT_PREVIEW_LIMIT))
+    ),
+  ]);
+  return rooms.map((room, i) => ({
+    ...room,
+    participantCount: counts[i],
+    // Just enough to render "who's here" avatars on the lobby card without
+    // pulling the room's full participant list (topics, session state) that
+    // only the room page itself needs.
+    participantsPreview: previews[i].map((p) => ({ userId: p.userId, name: p.user.name, imageUrl: p.user.imageUrl })),
+  }));
 }
 
 async function createRoom({ name, description, createdById, isPrivate }) {
@@ -200,6 +215,7 @@ async function sendMessage({ roomId, userId, content }) {
     name: message.user.name,
     imageUrl: message.user.imageUrl,
     content: message.content,
+    reactions: message.reactions ?? {},
     createdAt: message.createdAt,
   };
 
@@ -223,8 +239,47 @@ async function listMessages(roomId, { requesterId, code }) {
     name: m.user.name,
     imageUrl: m.user.imageUrl,
     content: m.content,
+    reactions: m.reactions ?? {},
     createdAt: m.createdAt,
   }));
+}
+
+// Toggles the caller's reaction on a message — adds it if they haven't
+// reacted with that emoji yet, removes it if they have. Cheap warmth-to-effort
+// win on top of the existing chat: no new model, just a Json map on the
+// message (see schema.prisma RoomMessage.reactions).
+async function reactToMessage({ roomId, messageId, userId, emoji }) {
+  const room = await roomsRepo.findRoomById(roomId);
+  if (!room) {
+    throw new AppError('Room not found', 404);
+  }
+  await assertCanAccess(room, userId, undefined);
+
+  const message = await roomsRepo.findMessageById(messageId);
+  if (!message || message.roomId !== roomId) {
+    throw new AppError('Message not found', 404);
+  }
+
+  const reactions = { ...(message.reactions ?? {}) };
+  const reactors = new Set(reactions[emoji] ?? []);
+  if (reactors.has(userId)) {
+    reactors.delete(userId);
+  } else {
+    reactors.add(userId);
+  }
+
+  if (reactors.size === 0) {
+    delete reactions[emoji];
+  } else {
+    reactions[emoji] = [...reactors];
+  }
+
+  await roomsRepo.setMessageReactions(messageId, reactions);
+
+  const payload = { roomId, messageId, reactions };
+  socket.emitToRoom(roomId, 'chat:reaction', payload);
+
+  return payload;
 }
 
 module.exports = {
@@ -237,4 +292,5 @@ module.exports = {
   leaveRoom,
   sendMessage,
   listMessages,
+  reactToMessage,
 };

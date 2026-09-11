@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RotateCw, Check } from "lucide-react";
+import { RotateCw, Check, Flame } from "lucide-react";
 import Skeleton from "@/components/Skeleton";
+import { useToast } from "@/providers/ToastProvider";
 import { getReviewQueue, gradeFlashcard } from "./review.services";
+import { getStudyInsights } from "@/features/dashboard/dash.services";
 
 const GRADES = [
   { value: "again", label: "Again", className: "bg-red-600 hover:bg-red-700" },
@@ -12,21 +14,32 @@ const GRADES = [
   { value: "easy", label: "Easy", className: "bg-emerald-600 hover:bg-emerald-700" },
 ];
 
+// A card's SM-2 state, in plain language, for the "why is this due" line —
+// see backend/src/modules/review/services.js toCardView.
+function dueReason(card) {
+  if (card.isNew) return "New card";
+  const days = card.intervalDays || 1;
+  return `Rep ${card.repetitions} · last interval ${days} day${days === 1 ? "" : "s"}`;
+}
+
 export default function ReviewPage({ workspaceId }) {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [cards, setCards] = useState([]);
   const [cardIndex, setCardIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [grading, setGrading] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
+  const [streak, setStreak] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    getReviewQueue(workspaceId)
-      .then((data) => {
+    Promise.all([getReviewQueue(workspaceId), getStudyInsights().catch(() => null)])
+      .then(([queue, insights]) => {
         if (cancelled) return;
-        setCards(data?.cards ?? []);
+        setCards(queue?.cards ?? []);
+        setStreak(insights?.currentStreak ?? null);
       })
       .catch(() => !cancelled && setError("Couldn't load your review queue."))
       .finally(() => !cancelled && setLoading(false));
@@ -46,7 +59,9 @@ export default function ReviewPage({ workspaceId }) {
       setFlipped(false);
       setCardIndex((i) => i + 1);
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't save that review. Try again.");
+      const message = err.response?.data?.message || "Couldn't save that review. Try again.";
+      setError(message);
+      showToast({ message, tone: "error" });
     } finally {
       setGrading(false);
     }
@@ -55,6 +70,13 @@ export default function ReviewPage({ workspaceId }) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-xl flex-col gap-4">
+        {!loading && Boolean(streak) && cardIndex < cards.length && (
+          <div className="inline-flex w-fit items-center gap-1.5 self-center rounded-full bg-mint-chip/40 px-3 py-1.5 text-caption font-medium text-carbon-black">
+            <Flame size={13} className="text-amber-600" />
+            {streak} day{streak === 1 ? "" : "s"} streak
+          </div>
+        )}
+
         <div className="rounded-card bg-paper-white p-6">
           {loading ? (
             <div className="flex flex-col gap-3">
@@ -62,7 +84,7 @@ export default function ReviewPage({ workspaceId }) {
               <Skeleton className="h-40 w-full" />
             </div>
           ) : cardIndex >= cards.length ? (
-            <SessionSummary reviewedCount={reviewedCount} hadCards={cards.length > 0} />
+            <SessionSummary reviewedCount={reviewedCount} hadCards={cards.length > 0} streak={streak} />
           ) : (
             <ReviewCard
               card={cards[cardIndex]}
@@ -110,6 +132,10 @@ function ReviewCard({ card, index, total, flipped, onFlip, onGrade, grading }) {
         )}
       </button>
 
+      <p className="text-center text-caption text-smoke" title="Why this card is due today">
+        {dueReason(card)}
+      </p>
+
       {flipped ? (
         <div className="grid grid-cols-4 gap-2">
           {GRADES.map((g) => (
@@ -132,7 +158,7 @@ function ReviewCard({ card, index, total, flipped, onFlip, onGrade, grading }) {
   );
 }
 
-function SessionSummary({ reviewedCount, hadCards }) {
+function SessionSummary({ reviewedCount, hadCards, streak }) {
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-mint-chip/40 text-carbon-black">
@@ -140,10 +166,16 @@ function SessionSummary({ reviewedCount, hadCards }) {
       </div>
       {hadCards ? (
         <>
-          <h2 className="font-display text-heading-md text-carbon-black">All caught up</h2>
+          <h2 className="font-display text-heading-md text-carbon-black">All caught up 🎉</h2>
           <p className="text-body-sm text-slate">
             You reviewed {reviewedCount} card{reviewedCount === 1 ? "" : "s"} this session.
           </p>
+          {Boolean(streak) && (
+            <p className="inline-flex items-center gap-1.5 text-body-sm font-medium text-carbon-black">
+              <Flame size={14} className="text-amber-600" />
+              {streak} day{streak === 1 ? "" : "s"} streak — keep it going.
+            </p>
+          )}
         </>
       ) : (
         <>
